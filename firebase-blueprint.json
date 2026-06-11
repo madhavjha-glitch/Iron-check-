@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role and gym membership details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique Firebase auth identity card UID" },
+        "name": { "type": "string", "description": "The user's display name" },
+        "email": { "type": "string", "description": "The user's email address" },
+        "role": { "type": "string", "enum": ["admin", "customer"], "description": "System access control role" },
+        "joinedAt": { "type": "string", "format": "date-time", "description": "When the user registered" },
+        "membershipStatus": { "type": "string", "enum": ["active", "inactive"], "description": "Current membership status" },
+        "feeStatus": { "type": "string", "enum": ["paid", "unpaid"], "description": "Payment status for the current billing cycle" },
+        "feeDueDate": { "type": "string", "format": "date-time", "description": "When the next fee payment is due" }
+      },
+      "required": ["uid", "name", "email", "role", "joinedAt", "membershipStatus", "feeStatus", "feeDueDate"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily check-in logs for gym members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique record log ID" },
+        "userId": { "type": "string", "description": "The UID of the checking-in customer" },
+        "userName": { "type": "string", "description": "The display name of the customer" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Precise server-sync check-in time" },
+        "dateString": { "type": "string", "description": "Check-in date formatted as YYYY-MM-DD" }
+      },
+      "required": ["id", "userId", "userName", "timestamp", "dateString"]
+    },
+    "Routine": {
+      "title": "Routine",
+      "description": "Gym exercise routine definitions with instructions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Routine ID" },
+        "day": { "type": "string", "description": "The target workout scheduled weekday" },
+        "title": { "type": "string", "description": "The title of the workout focus (e.g. Push Day)" },
+        "exercises": { "type": "string", "description": "JSON serialized exercise program list details" }
+      },
+      "required": ["id", "day", "title", "exercises"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Automated system reminders for fee payments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique notification ID" },
+        "userId": { "type": "string", "description": "The recipient's UID" },
+        "title": { "type": "string", "description": "Notification subject heading" },
+        "body": { "type": "string", "description": "Notification message summary" },
+        "sentAt": { "type": "string", "format": "date-time", "description": "System delivery timestamp" },
+        "status": { "type": "string", "enum": ["unread", "read"], "description": "Notification transmission delivery status" }
+      },
+      "required": ["id", "userId", "title", "body", "sentAt", "status"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Customized personal private room and digital locker configuration",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner userId of this personal room" },
+        "userName": { "type": "string", "description": "Owner display name" },
+        "lockerNumber": { "type": "string", "description": "Locker assignment number" },
+        "lockerPin": { "type": "string", "description": "Secret 4-digit numeric code to unlock locker" },
+        "notes": { "type": "string", "description": "Private fitness journal notes/secret locks" },
+        "themeVibe": { "type": "string", "enum": ["neon", "zen", "midnight", "sun"], "description": "Selected environment styling style" },
+        "lastAccess": { "type": "string", "format": "date-time", "description": "Last access time" }
+      },
+      "required": ["userId", "userName", "lockerNumber", "lockerPin", "notes", "themeVibe", "lastAccess"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User enrollment and privileges map"
+    },
+    "rooms/{userId}": {
+      "schema": "Room",
+      "description": "Isolated zero-trust user room and private locker data"
+    },
+    "attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Check-in log entries collection"
+    },
+    "routines/{routineId}": {
+      "schema": "Routine",
+      "description": "Gym structural training routines collection"
+    },
+    "reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "Automated system text dispatch updates for membership collections"
+    }
+  }
+}

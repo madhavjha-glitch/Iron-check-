@@ -1,0 +1,162 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Catch-All safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isEmailVerified() && (
+        request.auth.token.email == 'madhavjha514@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+      );
+    }
+
+    // 2. Users Table Rules
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.role is string && (data.role == 'admin' || data.role == 'customer') &&
+             data.joinedAt is timestamp &&
+             data.membershipStatus is string && (data.membershipStatus == 'active' || data.membershipStatus == 'inactive') &&
+             data.feeStatus is string && (data.feeStatus == 'paid' || data.feeStatus == 'unpaid') &&
+             data.feeDueDate is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin(); // Only admins can scan or query full user directories
+
+      allow create: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidUser(request.resource.data) && (
+        // Protect role designation: regular signups default to 'customer' unless bootstrapped email matches
+        (request.resource.data.role == 'customer' || request.auth.token.email == 'madhavjha514@gmail.com') &&
+        request.resource.data.membershipStatus == 'active'
+      );
+
+      allow update: if isSignedIn() && isValidId(userId) && (
+        // Gym Admin can overwrite fields (e.g. updating feeDueDate or status)
+        (isAdmin() && isValidUser(request.resource.data)) ||
+        // Members can edit profile metadata like 'name' or 'email' but roles are locked down
+        (request.auth.uid == userId &&
+         isValidUser(request.resource.data) &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.joinedAt == resource.data.joinedAt &&
+         request.resource.data.membershipStatus == resource.data.membershipStatus &&
+         request.resource.data.feeStatus == resource.data.feeStatus &&
+         request.resource.data.feeDueDate == resource.data.feeDueDate &&
+         request.resource.data.uid == resource.data.uid)
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // 2b. Administrators Table
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && adminId is string && adminId.size() <= 128;
+    }
+
+    // 2c. Personal Rooms Table (Private Room and Locker)
+    function isValidRoom(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.userName is string && data.userName.size() <= 200 &&
+             data.lockerNumber is string && data.lockerNumber.size() <= 20 &&
+             data.lockerPin is string && data.lockerPin.size() <= 40 &&
+             data.notes is string && data.notes.size() <= 5000 &&
+             data.themeVibe is string && (data.themeVibe == 'neon' || data.themeVibe == 'zen' || data.themeVibe == 'midnight' || data.themeVibe == 'sun') &&
+             data.lastAccess is timestamp;
+    }
+
+    match /rooms/{userId} {
+      allow read: if isSignedIn() && isValidId(userId) && userId == request.auth.uid;
+      allow write: if isSignedIn() && isValidId(userId) && userId == request.auth.uid && isValidRoom(request.resource.data);
+    }
+
+    // 3. Attendance Collections
+    function isValidAttendance(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.userName is string && data.userName.size() <= 200 &&
+             data.timestamp is timestamp &&
+             data.dateString is string && data.dateString.size() <= 20;
+    }
+
+    match /attendance/{attendanceId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.userId == request.auth.uid) // Query Enforcer
+      );
+
+      allow create: if isSignedIn() && isValidId(attendanceId) && isValidAttendance(request.resource.data) && (
+        (request.resource.data.userId == request.auth.uid || isAdmin()) &&
+        request.resource.data.timestamp == request.time
+      );
+
+      allow update, delete: if isAdmin();
+    }
+
+    // 4. Exercise Routines
+    function isValidRoutine(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.day is string && data.day.size() <= 50 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.exercises is string;
+    }
+
+    match /routines/{routineId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() && isValidId(routineId) && (request.method != 'delete' ? isValidRoutine(request.resource.data) : true);
+    }
+
+    // 5. Automated Fee Reminders
+    function isValidReminder(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.body is string && data.body.size() <= 1000 &&
+             data.sentAt is timestamp &&
+             data.status is string && (data.status == 'unread' || data.status == 'read');
+    }
+
+    match /reminders/{reminderId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (
+        isAdmin() ||
+        (resource.data.userId == request.auth.uid)
+      );
+
+      allow create: if isAdmin() && isValidId(reminderId) && isValidReminder(request.resource.data) && request.resource.data.sentAt == request.time;
+      allow update: if isSignedIn() && isValidId(reminderId) && (
+        isAdmin() && isValidReminder(request.resource.data)
+      ) || (
+        // Customers can read reminders and flip state only to 'read' (Self-mark read)
+        resource.data.userId == request.auth.uid &&
+        isValidReminder(request.resource.data) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.title == resource.data.title &&
+        request.resource.data.body == resource.data.body &&
+        request.resource.data.sentAt == resource.data.sentAt &&
+        request.resource.data.status == 'read' &&
+        request.resource.data.id == resource.data.id
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}
