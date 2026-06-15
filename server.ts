@@ -885,24 +885,28 @@ async function startServer() {
   // Initialize connection to MongoDB Atlas
   await connectToMongoDB();
 
-  // Serve frontend assets
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+  // Listen and serve frontend assets only if not running on Vercel
+  if (!process.env.VERCEL) {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server starting on http://0.0.0.0:${PORT}`);
     });
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server starting on http://0.0.0.0:${PORT}`);
-  });
 }
 
 startServer();
+
+export default app;

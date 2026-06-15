@@ -1,27 +1,13 @@
 {
   "version": 2,
-  "name": "gym-management-system",
-  "builds": [
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "dist/server.cjs"
+      "source": "/api/:path*",
+      "destination": "/api/index.ts"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "dist/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
