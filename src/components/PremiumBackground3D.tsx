@@ -47,7 +47,7 @@ export default function PremiumBackground3D() {
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;
       mouseRef.current.y += (mouseRef.current.targetY - mouseRef.current.y) * 0.05;
 
-      // Premium vibrant blue cosmic layout
+      // Premium minimal dark slate/obsidian luxury layout
       const bgGrad = ctx.createRadialGradient(
         width / 2,
         height / 2,
@@ -56,10 +56,9 @@ export default function PremiumBackground3D() {
         height / 2,
         Math.max(width, height)
       );
-      // Vibrant royal-blue merging into bright indigo-blue
-      bgGrad.addColorStop(0, "#2563eb"); // vibrant blue-600
-      bgGrad.addColorStop(0.5, "#1d4ed8"); // vibrant blue-700
-      bgGrad.addColorStop(1, "#172554"); // slate-950 / blue-950
+      bgGrad.addColorStop(0, "#101218"); // deep warm obsidian
+      bgGrad.addColorStop(0.6, "#07080b"); // rich black charcoal
+      bgGrad.addColorStop(1, "#020305"); // true pitch-black slate
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
@@ -133,30 +132,30 @@ export default function PremiumBackground3D() {
           // Connect to column right neighbor
           const ptRight = projectedPoints[c + 1]?.[r];
           if (ptRight && pt.opacity > 0.02 && ptRight.opacity > 0.02) {
-            const combinedOpacity = pt.opacity * ptRight.opacity * 0.18;
+            const combinedOpacity = pt.opacity * ptRight.opacity * 0.15;
             ctx.beginPath();
             ctx.moveTo(pt.sx, pt.sy);
             ctx.lineTo(ptRight.sx, ptRight.sy);
-            // Draw bright ice blue connecting strands
-            ctx.strokeStyle = `rgba(147, 197, 253, ${combinedOpacity})`;
+            // Draw bronze connecting strands
+            ctx.strokeStyle = `rgba(180, 83, 9, ${combinedOpacity})`;
             ctx.stroke();
           }
 
           // Connect to row bottom neighbor
           const ptBottom = projectedPoints[c]?.[r + 1];
           if (ptBottom && pt.opacity > 0.02 && ptBottom.opacity > 0.02) {
-            const combinedOpacity = pt.opacity * ptBottom.opacity * 0.18;
+            const combinedOpacity = pt.opacity * ptBottom.opacity * 0.15;
             ctx.beginPath();
             ctx.moveTo(pt.sx, pt.sy);
             ctx.lineTo(ptBottom.sx, ptBottom.sy);
-            // Draw electric cyan connecting strands
-            ctx.strokeStyle = `rgba(165, 243, 252, ${combinedOpacity})`;
+            // Draw champagne/gold connecting strands
+            ctx.strokeStyle = `rgba(245, 158, 11, ${combinedOpacity})`;
             ctx.stroke();
           }
         }
       }
 
-      // Draw particle nodes with depth-based sizes & gorgeous glowing ice colors
+      // Draw particle nodes with depth-based sizes & gorgeous glowing gold/amber colors
       for (let c = 0; c < cols; c += 1) {
         for (let r = 0; r < rows; r += 1) {
           const pt = projectedPoints[c]?.[r];
@@ -166,12 +165,12 @@ export default function PremiumBackground3D() {
           ctx.beginPath();
           ctx.arc(pt.sx, pt.sy, size, 0, Math.PI * 2);
 
-          // Stagger colours: alternating bright blue, glowing white and electric cyan
-          let nodeColor = `rgba(191, 219, 254, ${pt.opacity * 0.85})`; // light blue-200
+          // Stagger colours: alternating gold-400, warm amber-600 and glowing titanium white
+          let nodeColor = `rgba(251, 191, 36, ${pt.opacity * 0.82})`; // gold-400
           if ((c + r) % 5 === 0) {
-            nodeColor = `rgba(165, 243, 252, ${pt.opacity * 0.95})`; // neon cyan-200
+            nodeColor = `rgba(217, 119, 6, ${pt.opacity * 0.95})`; // amber-600
           } else if ((c + r) % 7 === 0) {
-            nodeColor = `rgba(255, 255, 255, ${pt.opacity * 0.9})`; // pure white glow
+            nodeColor = `rgba(255, 255, 255, ${pt.opacity * 0.9})`; // warm white glow
           }
 
           ctx.fillStyle = nodeColor;

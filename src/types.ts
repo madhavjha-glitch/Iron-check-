@@ -12,16 +12,7 @@ export interface MemberProfile {
   feeStatus: FeeStatus;
   feeDueDate: string; // ISO format
   photoUrl?: string;
-}
-
-export interface PersonalRoom {
-  userId: string;
-  userName: string;
-  lockerNumber: string;
-  lockerPin: string;
-  notes: string;
-  themeVibe: "neon" | "zen" | "midnight" | "sun";
-  lastAccess: string; // ISO format
+  feePlan?: "1month" | "3months" | "6months" | "1year";
 }
 
 export interface AttendanceLog {
@@ -30,6 +21,8 @@ export interface AttendanceLog {
   userName: string;
   timestamp: string; // ISO format
   dateString: string; // YYYY-MM-DD
+  checkOutTime?: string; // ISO format
+  status?: "in" | "out";
 }
 
 export interface Exercise {
@@ -53,4 +46,24 @@ export interface GymNotification {
   body: string;
   sentAt: string; // ISO format
   status: "unread" | "read";
+}
+
+export interface GymGateLog {
+  memberId: string;
+  memberName: string;
+  timestamp: string; // ISO format
+  status: "granted" | "refused" | "error";
+}
+
+
+export interface GymGateState {
+  gymId: string;
+  qrCode: string;
+  qrImage?: string;
+  gateStatus: "locked" | "unlocked";
+  gateOpenedBy?: string;
+  lastOpenedAt?: string; // ISO format
+  openDuration: number; // seconds
+  accessLog: GymGateLog[];
+  lastUpdated: string; // ISO format
 }

@@ -33,6 +33,8 @@ import {
   ExerciseRoutine,
   GymNotification,
   UserRole,
+  GymGateState,
+  GymGateLog,
 } from "./types";
 
 // Check if credentials are set
@@ -242,6 +244,20 @@ const initializeLocalStorage = () => {
     ];
     localStorage.setItem(LOCAL_REMINDERS_KEY, JSON.stringify(defaultReminders));
   }
+  if (!localStorage.getItem("gym_demo_gate")) {
+    const defaultGate = {
+      gymId: "gym_hq_1",
+      qrCode: "iron_check_front_desk_checkin",
+      qrImage: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=iron_check_front_desk_checkin&color=ffffff&bgcolor=020617",
+      gateStatus: "locked",
+      gateOpenedBy: "",
+      lastOpenedAt: "",
+      openDuration: 5,
+      accessLog: [],
+      lastUpdated: new Date().toISOString()
+    };
+    localStorage.setItem("gym_demo_gate", JSON.stringify(defaultGate));
+  }
 };
 
 initializeLocalStorage();
@@ -254,10 +270,11 @@ const simListeners: { [key: string]: Set<Function> } = {
   routines: new Set(),
   reminders: new Set(),
   admins: new Set(),
+  gate: new Set(),
 };
 
-const triggerLocalListeners = (collectionName: "users" | "attendance" | "routines" | "reminders" | "admins") => {
-  const data = JSON.parse(localStorage.getItem(`gym_demo_${collectionName}`) || "[]");
+const triggerLocalListeners = (collectionName: "users" | "attendance" | "routines" | "reminders" | "admins" | "gate") => {
+  const data = JSON.parse(localStorage.getItem(`gym_demo_${collectionName}`) || (collectionName === "gate" ? "{}" : "[]"));
   if (simListeners[collectionName]) {
     simListeners[collectionName].forEach((cb) => cb(data));
   }
@@ -338,6 +355,7 @@ export const loginWithGooglePopup = async (): Promise<AuthUserState> => {
           feeStatus: raw.feeStatus,
           feeDueDate: raw.feeDueDate instanceof Timestamp ? raw.feeDueDate.toDate().toISOString() : raw.feeDueDate,
           photoUrl: raw.photoUrl,
+          feePlan: raw.feePlan || "1month",
         };
       }
 
@@ -550,6 +568,7 @@ export const loginWithEmailAndPass = async (
           feeStatus: raw.feeStatus || "unpaid",
           feeDueDate: raw.feeDueDate instanceof Timestamp ? raw.feeDueDate.toDate().toISOString() : (raw.feeDueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()),
           photoUrl: raw.photoUrl,
+          feePlan: raw.feePlan || "1month",
         };
       }
 
@@ -592,6 +611,7 @@ export const subscribeToAuthChanges = (
                 feeStatus: raw.feeStatus || "unpaid",
                 feeDueDate: raw.feeDueDate instanceof Timestamp ? raw.feeDueDate.toDate().toISOString() : (raw.feeDueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()),
                 photoUrl: raw.photoUrl,
+                feePlan: raw.feePlan || "1month",
               };
               callback({
                 uid: firebaseUser.uid,
@@ -665,6 +685,7 @@ export const subscribeToMembersList = (
             feeStatus: raw.feeStatus,
             feeDueDate: raw.feeDueDate instanceof Timestamp ? raw.feeDueDate.toDate().toISOString() : raw.feeDueDate,
             photoUrl: raw.photoUrl,
+            feePlan: raw.feePlan || "1month",
           };
         });
         callback(list.filter((u) => u.role !== "admin"));
@@ -684,14 +705,20 @@ export const subscribeToMembersList = (
   }
 };
 
-// Mark Fee Payments with a single click (Paid / Unpaid)
+// Mark Fee Payments with a single click or specified plan (Paid / Unpaid)
 export const setMemberFeeStatus = async (
   uid: string,
-  status: "paid" | "unpaid"
+  status: "paid" | "unpaid",
+  plan: "1month" | "3months" | "6months" | "1year" = "1month"
 ): Promise<void> => {
+  let days = 30;
+  if (plan === "3months") days = 90;
+  else if (plan === "6months") days = 180;
+  else if (plan === "1year") days = 365;
+
   const newDueDate =
     status === "paid"
-      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() //Extend 30 Days
+      ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() //Extend specified days
       : new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(); //Mark overdue
 
   if (isFirebaseConfigured && db) {
@@ -700,6 +727,7 @@ export const setMemberFeeStatus = async (
       await updateDoc(userDocRef, {
         feeStatus: status,
         feeDueDate: Timestamp.fromDate(new Date(newDueDate)),
+        feePlan: plan,
       });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`);
@@ -708,7 +736,7 @@ export const setMemberFeeStatus = async (
     const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
     const updated = users.map((u: MemberProfile) => {
       if (u.uid === uid) {
-        return { ...u, feeStatus: status, feeDueDate: newDueDate };
+        return { ...u, feeStatus: status, feeDueDate: newDueDate, feePlan: plan };
       }
       return u;
     });
@@ -739,12 +767,57 @@ export const logDailyCheckIn = async (
   const todayString = new Date().toISOString().split("T")[0];
   const checkInId = `att_${userId}_${todayString}`;
 
+  // Fetch Member Profile first to verify active status and expiration dues
+  let memberProfile: MemberProfile | null = null;
+  if (isFirebaseConfigured && db) {
+    try {
+      const userRef = doc(db, "users", userId);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const raw = snap.data();
+        memberProfile = {
+          uid: raw.uid,
+          name: raw.name || userName,
+          email: raw.email || "",
+          role: raw.role || "customer",
+          joinedAt: raw.joinedAt instanceof Timestamp ? raw.joinedAt.toDate().toISOString() : raw.joinedAt,
+          membershipStatus: raw.membershipStatus || "active",
+          feeStatus: raw.feeStatus || "unpaid",
+          feeDueDate: raw.feeDueDate instanceof Timestamp ? raw.feeDueDate.toDate().toISOString() : raw.feeDueDate,
+          photoUrl: raw.photoUrl,
+        };
+      }
+    } catch (e) {
+      console.warn("Failed checking profile during verification: ", e);
+    }
+  } else {
+    const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
+    const found = users.find((u: MemberProfile) => u.uid === userId);
+    if (found) {
+      memberProfile = found;
+    }
+  }
+
+  // Active validation check
+  if (memberProfile && memberProfile.role !== "admin") {
+    if (memberProfile.membershipStatus !== "active") {
+      throw new Error(`Membership is not active! Status is currently "${memberProfile.membershipStatus}".`);
+    }
+
+    // Expiry validation check
+    const expiry = new Date(memberProfile.feeDueDate);
+    if (expiry < new Date()) {
+      throw new Error(`Membership expired on ${expiry.toLocaleDateString()}. Please renew subscription dues.`);
+    }
+  }
+
   const attendanceRecord: AttendanceLog = {
     id: checkInId,
     userId,
     userName,
     timestamp: new Date().toISOString(),
     dateString: todayString,
+    status: "in",
   };
 
   if (isFirebaseConfigured && db) {
@@ -759,13 +832,72 @@ export const logDailyCheckIn = async (
     }
   } else {
     const logs = JSON.parse(localStorage.getItem(LOCAL_ATTENDANCE_KEY) || "[]");
-    // Only allow one check-in per day per user
-    if (!logs.some((l: AttendanceLog) => l.userId === userId && l.dateString === todayString)) {
+    // Only allow one check-in per day per user (or reset status back to in if checking in again after manual reset)
+    const existingIndex = logs.findIndex((l: AttendanceLog) => l.userId === userId && l.dateString === todayString);
+    if (existingIndex === -1) {
       logs.unshift(attendanceRecord);
       localStorage.setItem(LOCAL_ATTENDANCE_KEY, JSON.stringify(logs));
       triggerLocalListeners("attendance");
     } else {
-      throw new Error("You have already checked in today!");
+      // If already exists but checked out, they can check back in
+      const existing = logs[existingIndex];
+      if (existing.status === "out") {
+        existing.status = "in";
+        existing.timestamp = new Date().toISOString();
+        delete existing.checkOutTime;
+        localStorage.setItem(LOCAL_ATTENDANCE_KEY, JSON.stringify(logs));
+        triggerLocalListeners("attendance");
+      } else {
+        throw new Error("Duplicate entry: You have already checked in today!");
+      }
+    }
+  }
+};
+
+// Log Daily Checkout (Manual via dashboard/panel or gate exit scan)
+export const logDailyCheckOut = async (
+  userId: string
+): Promise<void> => {
+  const todayString = new Date().toISOString().split("T")[0];
+  const checkInId = `att_${userId}_${todayString}`;
+  const checkOutTimeIso = new Date().toISOString();
+
+  if (isFirebaseConfigured && db) {
+    const logDocRef = doc(db, "attendance", checkInId);
+    try {
+      await updateDoc(logDocRef, {
+        checkOutTime: checkOutTimeIso,
+        status: "out"
+      });
+    } catch (err) {
+      // Fallback if doc doesn't exist
+      await setDoc(logDocRef, {
+        checkOutTime: checkOutTimeIso,
+        status: "out"
+      }, { merge: true });
+    }
+  } else {
+    const logs = JSON.parse(localStorage.getItem(LOCAL_ATTENDANCE_KEY) || "[]");
+    const existingIndex = logs.findIndex((l: AttendanceLog) => l.userId === userId && l.dateString === todayString);
+    if (existingIndex !== -1) {
+      logs[existingIndex].checkOutTime = checkOutTimeIso;
+      logs[existingIndex].status = "out";
+      localStorage.setItem(LOCAL_ATTENDANCE_KEY, JSON.stringify(logs));
+      triggerLocalListeners("attendance");
+    } else {
+      // If none, create a completed today check out with fallback username
+      const fallbackRecord: AttendanceLog = {
+        id: checkInId,
+        userId,
+        userName: "Member Active Session",
+        timestamp: new Date(Date.now() - 3600000).toISOString(), // Checked in an hour ago
+        dateString: todayString,
+        checkOutTime: checkOutTimeIso,
+        status: "out"
+      };
+      logs.unshift(fallbackRecord);
+      localStorage.setItem(LOCAL_ATTENDANCE_KEY, JSON.stringify(logs));
+      triggerLocalListeners("attendance");
     }
   }
 };
@@ -804,6 +936,8 @@ export const subscribeToAttendanceLogs = (
             userName: raw.userName,
             timestamp: raw.timestamp instanceof Timestamp ? raw.timestamp.toDate().toISOString() : raw.timestamp,
             dateString: raw.dateString,
+            checkOutTime: raw.checkOutTime,
+            status: raw.status || "in",
           };
         });
         
@@ -823,6 +957,50 @@ export const subscribeToAttendanceLogs = (
       } else {
         realCallback(data);
       }
+    };
+    simListeners.attendance.add(loadAndDeliver);
+    loadAndDeliver();
+    return () => simListeners.attendance.delete(loadAndDeliver);
+  }
+};
+
+// Subscribe to overall active check-ins for today (for overall real-time occupancy counting)
+export const subscribeToGlobalLiveOccupancy = (
+  callback: (logs: AttendanceLog[]) => void
+): Unsubscribe => {
+  const todayString = new Date().toISOString().split("T")[0];
+
+  if (isFirebaseConfigured && db) {
+    const attendanceCol = collection(db, "attendance");
+    const q = query(attendanceCol, where("dateString", "==", todayString));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: AttendanceLog[] = snapshot.docs.map((d) => {
+          const raw = d.data();
+          return {
+            id: raw.id,
+            userId: raw.userId,
+            userName: raw.userName,
+            timestamp: raw.timestamp instanceof Timestamp ? raw.timestamp.toDate().toISOString() : raw.timestamp,
+            dateString: raw.dateString,
+            checkOutTime: raw.checkOutTime,
+            status: raw.status || "in",
+          };
+        });
+        callback(list);
+      },
+      (err) => {
+        handleFirestoreError(err, OperationType.LIST, "attendance");
+      }
+    );
+  } else {
+    const loadAndDeliver = () => {
+      const data = JSON.parse(localStorage.getItem(LOCAL_ATTENDANCE_KEY) || "[]");
+      // filter only today's sessions
+      const todayLogs = data.filter((l: AttendanceLog) => l.dateString === todayString);
+      callback(todayLogs);
     };
     simListeners.attendance.add(loadAndDeliver);
     loadAndDeliver();
@@ -1023,14 +1201,23 @@ export const executeDynamicMembershipFeeCheck = async (
       }
 
       if (shouldSend) {
+        const planName =
+          member.feePlan === "3months"
+            ? "3-Month"
+            : member.feePlan === "6months"
+            ? "6-Month"
+            : member.feePlan === "1year"
+            ? "1-Year"
+            : "Monthly";
+
         const msg =
           diffDays < 0
-            ? `Your monthly gym fee is overdue by ${Math.abs(diffDays)} days. Please clear your dues at the desk to maintain gym access.`
-            : `Your monthly gym fee is due in ${diffDays} days (${dueDate.toLocaleDateString()}). Please make your payment soon.`;
+            ? `Your ${planName} gym membership is overdue by ${Math.abs(diffDays)} days. Please clear your dues to maintain active gym access.`
+            : `Your ${planName} gym membership is due for renewal in ${diffDays} days (${dueDate.toLocaleDateString()}). Please make your payment soon.`;
 
         await dispatchFeeReminder(
           member.uid,
-          diffDays < 0 ? "⚠️ Membership Fee Overdue Warning" : "📅 Upcoming Membership Fee Due",
+          diffDays < 0 ? "⚠️ Membership Renewal Overdue" : "📅 Gym Subscription Renewal Due",
           msg
         );
         remindersSent++;
@@ -1139,117 +1326,6 @@ export const removeAdminEmail = async (email: string): Promise<void> => {
   }
 };
 
-// ----------------------------------------------------
-// PRIVATE PERSONAL ROOM & DIGITAL LOCKER PERSISTENCE
-// ----------------------------------------------------
-import { PersonalRoom } from "./types";
-
-simListeners.rooms = new Set();
-const LOCAL_ROOMS_KEY = "gym_demo_rooms";
-
-export const subscribeToPersonalRoom = (
-  userId: string,
-  userName: string,
-  callback: (room: PersonalRoom) => void
-): Unsubscribe => {
-  if (isFirebaseConfigured && db) {
-    const roomDocRef = doc(db, "rooms", userId);
-    return onSnapshot(
-      roomDocRef,
-      async (snapshot) => {
-        if (snapshot.exists()) {
-          const raw = snapshot.data();
-          const room: PersonalRoom = {
-            userId: raw.userId,
-            userName: raw.userName,
-            lockerNumber: raw.lockerNumber,
-            lockerPin: raw.lockerPin,
-            notes: raw.notes,
-            themeVibe: raw.themeVibe as any,
-            lastAccess: raw.lastAccess instanceof Timestamp ? raw.lastAccess.toDate().toISOString() : raw.lastAccess,
-          };
-          callback(room);
-        } else {
-          // Automatic bootstrap Setup for a default custom Room
-          const defaultRoom: PersonalRoom = {
-            userId,
-            userName,
-            lockerNumber: `L-${Math.floor(100 + Math.random() * 900)}`,
-            lockerPin: "",
-            notes: "Welcome to your personal private fitness room journal! 🌟\n\nYour workouts, private targets, and personal locker drawer PIN are secure under strict Zero-Trust and Firebase security.\n\nUse this space to track reps, goals, or notes safely.",
-            themeVibe: "midnight",
-            lastAccess: new Date().toISOString(),
-          };
-          try {
-            await setDoc(roomDocRef, {
-              ...defaultRoom,
-              lastAccess: Timestamp.fromDate(new Date(defaultRoom.lastAccess)),
-            });
-          } catch (e) {
-            handleFirestoreError(e, OperationType.CREATE, `rooms/${userId}`);
-          }
-        }
-      },
-      (err) => {
-        handleFirestoreError(err, OperationType.GET, `rooms/${userId}`);
-      }
-    );
-  } else {
-    const loadAndDeliver = () => {
-      const rooms = JSON.parse(localStorage.getItem(LOCAL_ROOMS_KEY) || "[]");
-      let found = rooms.find((r: PersonalRoom) => r.userId === userId);
-      if (!found) {
-        found = {
-          userId,
-          userName,
-          lockerNumber: `L-${Math.floor(100 + Math.random() * 900)}`,
-          lockerPin: "",
-          notes: "Welcome to your personal private fitness room journal! 🌟\n\nYour workouts, private targets, and personal locker drawer PIN are secure under strict Zero-Trust and Firebase security.\n\nUse this space to track reps, goals, or notes safely.",
-          themeVibe: "midnight",
-          lastAccess: new Date().toISOString(),
-        };
-        rooms.push(found);
-        localStorage.setItem(LOCAL_ROOMS_KEY, JSON.stringify(rooms));
-      }
-      callback(found);
-    };
-    simListeners.rooms.add(loadAndDeliver);
-    loadAndDeliver();
-    return () => simListeners.rooms.delete(loadAndDeliver);
-  }
-};
-
-export const savePersonalRoom = async (room: PersonalRoom): Promise<void> => {
-  const updatedRoom = {
-    ...room,
-    lastAccess: new Date().toISOString(),
-  };
-
-  if (isFirebaseConfigured && db) {
-    const roomDocRef = doc(db, "rooms", room.userId);
-    try {
-      await setDoc(roomDocRef, {
-        ...updatedRoom,
-        lastAccess: Timestamp.fromDate(new Date(updatedRoom.lastAccess)),
-      });
-    } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `rooms/${room.userId}`);
-    }
-  } else {
-    const rooms = JSON.parse(localStorage.getItem(LOCAL_ROOMS_KEY) || "[]");
-    const idx = rooms.findIndex((r: PersonalRoom) => r.userId === room.userId);
-    if (idx >= 0) {
-      rooms[idx] = updatedRoom;
-    } else {
-      rooms.push(updatedRoom);
-    }
-    localStorage.setItem(LOCAL_ROOMS_KEY, JSON.stringify(rooms));
-    if (simListeners.rooms) {
-      simListeners.rooms.forEach((cb) => cb(updatedRoom));
-    }
-  }
-};
-
 export const updateMemberProfilePhoto = async (
   uid: string,
   photoUrl: string
@@ -1275,4 +1351,253 @@ export const updateMemberProfilePhoto = async (
     triggerLocalListeners("users");
   }
 };
+
+// Manually register an individual member
+export const manuallyAddMember = async (newMember: MemberProfile): Promise<void> => {
+  if (isFirebaseConfigured && db) {
+    const userDocRef = doc(db, "users", newMember.uid);
+    try {
+      await setDoc(userDocRef, {
+        ...newMember,
+        joinedAt: Timestamp.fromDate(new Date(newMember.joinedAt)),
+        feeDueDate: Timestamp.fromDate(new Date(newMember.feeDueDate)),
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `users/${newMember.uid}`);
+    }
+  } else {
+    const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
+    // Avoid registration duplicate
+    const index = users.findIndex((u: MemberProfile) => u.uid === newMember.uid || u.email.toLowerCase() === newMember.email.toLowerCase());
+    if (index !== -1) {
+      users[index] = { ...users[index], ...newMember };
+    } else {
+      users.push(newMember);
+    }
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+    triggerLocalListeners("users");
+  }
+};
+
+// Delete a member profile entirely from the register
+export const deleteMemberProfile = async (uid: string): Promise<void> => {
+  if (isFirebaseConfigured && db) {
+    const userDocRef = doc(db, "users", uid);
+    try {
+      await deleteDoc(userDocRef);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${uid}`);
+    }
+  } else {
+    const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
+    const filtered = users.filter((u: MemberProfile) => u.uid !== uid);
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(filtered));
+    triggerLocalListeners("users");
+  }
+};
+
+// Import custom bulk listing of members
+export const bulkImportMembersList = async (membersList: MemberProfile[]): Promise<void> => {
+  if (isFirebaseConfigured && db) {
+    for (const member of membersList) {
+      const userRef = doc(db, "users", member.uid);
+      try {
+        await setDoc(userRef, {
+          ...member,
+          joinedAt: Timestamp.fromDate(new Date(member.joinedAt)),
+          feeDueDate: Timestamp.fromDate(new Date(member.feeDueDate)),
+        });
+      } catch (e) {
+        console.error("Single bulk item upload skipped due to permissions/network: ", e);
+      }
+    }
+  } else {
+    const users = JSON.parse(localStorage.getItem(LOCAL_USERS_KEY) || "[]");
+    membersList.forEach((newMem) => {
+      const existingIdx = users.findIndex((u: MemberProfile) => u.uid === newMem.uid || u.email.toLowerCase() === newMem.email.toLowerCase());
+      if (existingIdx !== -1) {
+        users[existingIdx] = { ...users[existingIdx], ...newMem };
+      } else {
+        users.push(newMem);
+      }
+    });
+    localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+    triggerLocalListeners("users");
+  }
+};
+
+export const subscribeToGymGate = (callback: (gate: GymGateState) => void): Unsubscribe => {
+  if (isFirebaseConfigured && db) {
+    const gateDocRef = doc(db, "gym_gates", "main");
+    return onSnapshot(
+      gateDocRef,
+      (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          callback({
+            gymId: data.gymId || "gym_hq_1",
+            qrCode: data.qrCode || "iron_check_front_desk_checkin",
+            qrImage: data.qrImage || "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=iron_check_front_desk_checkin&color=ffffff&bgcolor=020617",
+            gateStatus: data.gateStatus || "locked",
+            gateOpenedBy: data.gateOpenedBy || "",
+            lastOpenedAt: data.lastOpenedAt instanceof Timestamp ? data.lastOpenedAt.toDate().toISOString() : data.lastOpenedAt || "",
+            openDuration: data.openDuration || 5,
+            accessLog: (data.accessLog || []).map((l: any) => ({
+              memberId: l.memberId,
+              memberName: l.memberName,
+              timestamp: l.timestamp instanceof Timestamp ? l.timestamp.toDate().toISOString() : l.timestamp,
+              status: l.status,
+            })),
+            lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : data.lastUpdated || "",
+          });
+        } else {
+          const initGate: GymGateState = {
+            gymId: "gym_hq_1",
+            qrCode: "iron_check_front_desk_checkin",
+            gateStatus: "locked",
+            openDuration: 5,
+            accessLog: [],
+            lastUpdated: new Date().toISOString()
+          };
+          setDoc(gateDocRef, initGate);
+          callback(initGate);
+        }
+      },
+      (err) => {
+        console.warn("Subscribing to Firebase gym gate failed: ", err);
+      }
+    );
+  } else {
+    simListeners.gate.add(callback);
+    const gateStr = localStorage.getItem("gym_demo_gate") || "{}";
+    let current: GymGateState;
+    try {
+      current = JSON.parse(gateStr);
+    } catch {
+      current = {
+        gymId: "gym_hq_1",
+        qrCode: "iron_check_front_desk_checkin",
+        gateStatus: "locked",
+        openDuration: 5,
+        accessLog: [],
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    callback(current);
+    return () => {
+      simListeners.gate.delete(callback);
+    };
+  }
+};
+
+export const triggerGateHandshakeRecord = async (
+  memberId: string,
+  memberName: string,
+  status: "granted" | "refused" | "error"
+): Promise<void> => {
+  const isUnlocked = status === "granted";
+  
+  const rawLog: GymGateLog = {
+    memberId,
+    memberName,
+    timestamp: new Date().toISOString(),
+    status,
+  };
+
+  if (isFirebaseConfigured && db) {
+    const gateDocRef = doc(db, "gym_gates", "main");
+    try {
+      const snap = await getDoc(gateDocRef);
+      let existingLog: any[] = [];
+      let currentGate: any = {};
+      
+      if (snap.exists()) {
+        currentGate = snap.data();
+        existingLog = currentGate.accessLog || [];
+      }
+      
+      const newLogs = [rawLog, ...existingLog].slice(0, 20);
+      
+      const updatedData: any = {
+        gymId: currentGate.gymId || "gym_hq_1",
+        qrCode: currentGate.qrCode || "iron_check_front_desk_checkin",
+        gateStatus: isUnlocked ? "unlocked" : "locked",
+        lastUpdated: Timestamp.fromDate(new Date()),
+        accessLog: newLogs,
+      };
+
+      if (isUnlocked) {
+        updatedData.gateOpenedBy = memberName;
+        updatedData.lastOpenedAt = Timestamp.fromDate(new Date());
+        updatedData.openDuration = 5;
+      }
+
+      await setDoc(gateDocRef, updatedData);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, "gym_gates/main");
+    }
+  } else {
+    const gateStr = localStorage.getItem("gym_demo_gate") || "{}";
+    let currentGate: GymGateState;
+    try {
+      currentGate = JSON.parse(gateStr);
+    } catch {
+      currentGate = {
+        gymId: "gym_hq_1",
+        qrCode: "iron_check_front_desk_checkin",
+        gateStatus: "locked",
+        openDuration: 5,
+        accessLog: [],
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    
+    currentGate.accessLog = [rawLog, ...(currentGate.accessLog || [])].slice(0, 20);
+    currentGate.gateStatus = isUnlocked ? "unlocked" : "locked";
+    currentGate.lastUpdated = new Date().toISOString();
+    
+    if (isUnlocked) {
+      currentGate.gateOpenedBy = memberName;
+      currentGate.lastOpenedAt = new Date().toISOString();
+      currentGate.openDuration = 5;
+    }
+    
+    localStorage.setItem("gym_demo_gate", JSON.stringify(currentGate));
+    triggerLocalListeners("gate");
+  }
+};
+
+export const lockGateManual = async (): Promise<void> => {
+  if (isFirebaseConfigured && db) {
+    const gateDocRef = doc(db, "gym_gates", "main");
+    try {
+      await updateDoc(gateDocRef, {
+        gateStatus: "locked",
+        lastUpdated: Timestamp.fromDate(new Date())
+      });
+    } catch (e) {
+      console.warn("Failed manually resetting Gate status in Firebase: ", e);
+    }
+  } else {
+    const gateStr = localStorage.getItem("gym_demo_gate") || "{}";
+    let currentGate: GymGateState;
+    try {
+      currentGate = JSON.parse(gateStr);
+    } catch {
+      currentGate = {
+        gymId: "gym_hq_1",
+        qrCode: "iron_check_front_desk_checkin",
+        gateStatus: "locked",
+        openDuration: 5,
+        accessLog: [],
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    currentGate.gateStatus = "locked";
+    currentGate.lastUpdated = new Date().toISOString();
+    localStorage.setItem("gym_demo_gate", JSON.stringify(currentGate));
+    triggerLocalListeners("gate");
+  }
+};
+
 

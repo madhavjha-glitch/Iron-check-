@@ -272,43 +272,43 @@ export default function AuthScreen({
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-6 bg-transparent relative overflow-hidden">
-      {/* Decorative glass glow blobs */}
-      <div className="absolute top-[-10%] left-[-20%] w-[160px] h-[160px] rounded-full bg-indigo-500/10 blur-[60px] pointer-events-none"></div>
-      <div className="absolute bottom-[20%] right-[-10%] w-[200px] h-[200px] rounded-full bg-slate-200/40 blur-[80px] pointer-events-none"></div>
+    <div className="flex-1 flex flex-col justify-between p-6 bg-slate-950 text-slate-100 relative overflow-hidden">
+      {/* Decorative glass glow blobs - Premium Ambient Radiance */}
+      <div className="absolute top-[-10%] left-[-20%] w-[220px] h-[220px] rounded-full bg-indigo-600/15 blur-[70px] pointer-events-none"></div>
+      <div className="absolute bottom-[10%] right-[-10%] w-[250px] h-[250px] rounded-full bg-violet-600/10 blur-[90px] pointer-events-none"></div>
 
-      {/* Header section */}
+      {/* Header section with Premium Serif Accent */}
       <div className="text-center pt-8 z-10">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5 }}
-          className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white shadow-md mb-4"
+          className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600/20 text-white border border-indigo-500/30 shadow-lg mb-4"
         >
-          <Dumbbell className="w-8 h-8" />
+          <Dumbbell className="w-7 h-7 text-indigo-400" />
         </motion.div>
         <motion.h1
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="text-2xl font-bold tracking-tight text-slate-900 mb-1"
+          className="text-3xl font-extrabold tracking-tight text-white mb-1"
         >
-          NEXUS GYM
+          IRON <span className="font-serif italic font-normal text-indigo-400">check</span>
         </motion.h1>
         <motion.p
           initial={{ y: 10, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="text-xs text-slate-500 font-medium"
+          className="text-xs text-slate-400 font-bold tracking-widest uppercase"
         >
-          Core Strength & Membership Portal
+          Core strength & biometric entryway
         </motion.p>
       </div>
 
       {/* Main interaction content */}
-      <div className="my-auto z-10 py-4">
-        {/* Auth Mode Toggle Tabs */}
-        <div className="flex bg-slate-200/60 p-1 rounded-xl mb-5 border border-slate-200">
+      <div className="my-auto z-10 py-4 w-full max-w-md mx-auto">
+        {/* Auth Mode Toggle Tabs - Sleek Dark Design */}
+        <div className="flex bg-slate-900 p-1.5 rounded-2xl mb-6 border border-white/5">
           <button
             type="button"
             onClick={() => {
@@ -316,10 +316,10 @@ export default function AuthScreen({
               setErrorMsg("");
               setSuccessMsg("");
             }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               authMode === "signin"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-indigo-600/25 text-white border border-indigo-500/20 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -332,10 +332,10 @@ export default function AuthScreen({
               setErrorMsg("");
               setSuccessMsg("");
             }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               authMode === "signup"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
+                ? "bg-indigo-600/25 text-white border border-indigo-500/20 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -347,27 +347,27 @@ export default function AuthScreen({
         {authMode === "signin" ? (
           <div className="space-y-5">
             {/* Luxe Gold Theme Sign-In */}
-            <div className="bg-white border-2 border-amber-500/30 rounded-2xl p-5 text-center shadow-[0_4px_20px_rgba(217,119,6,0.06)] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 blur-xl rounded-full pointer-events-none"></div>
-              <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2.5 animate-pulse" />
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">VIP Portal Credentials</h3>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                Connect your verified Google account to authenticate workspace permissions and launch your active member health metrics.
+            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center shadow-[0_4px_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full pointer-events-none"></div>
+              <Sparkles className="w-8 h-8 text-indigo-400 mx-auto mb-3 animate-pulse" />
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Simulated Biometric Gate</h3>
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                Connect your verified credentials to authorize gateway permissions and synchronize active membership health metrics.
               </p>
               
               <div className="mt-5">
                 <button
                   type="button"
                   onClick={handleGoogleButtonClick}
-                  className="relative overflow-hidden w-full bg-slate-900 hover:bg-slate-950 text-amber-400 font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(217,119,6,0.15)] border border-amber-500/40 hover:border-amber-400 active:scale-[0.98] cursor-pointer group"
+                  className="relative overflow-hidden w-full bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-3 shadow-[0_4px_15px_rgba(99,102,241,0.3)] border border-indigo-500/50 hover:border-indigo-400 active:scale-[0.98] cursor-pointer group"
                 >
                   <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#F59E0B" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#D97706" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBF24" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#F59E0B" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#e0e7ff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#c7d2fe" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span className="tracking-wider uppercase font-sans font-extrabold text-[11px]">Sign In with Google Gold</span>
+                  <span className="tracking-wider uppercase font-sans font-extrabold text-[11px]">ACCESS DIGITAL WORKSPACE</span>
                 </button>
               </div>
             </div>
@@ -376,11 +376,11 @@ export default function AuthScreen({
           /* Content for Sign Up Mode */
           <div className="space-y-5">
             {/* Luxe Gold Theme Sign-Up */}
-            <div className="bg-white border-2 border-amber-500/30 rounded-2xl p-5 text-center shadow-[0_4px_20px_rgba(217,119,6,0.06)] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 blur-xl rounded-full pointer-events-none"></div>
-              <Sparkles className="w-8 h-8 text-amber-500 mx-auto mb-2.5 animate-bounce" />
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Instant Smart Registration</h3>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 rounded-3xl p-6 text-center shadow-[0_4px_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 blur-2xl rounded-full pointer-events-none"></div>
+              <Sparkles className="w-8 h-8 text-indigo-400 mx-auto mb-3 animate-bounce" />
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider">Instant Membership Key</h3>
+              <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
                 Create a high-tier premium gym membership or register your central admin panel immediately using single sign-on security.
               </p>
               
@@ -388,15 +388,15 @@ export default function AuthScreen({
                 <button
                   type="button"
                   onClick={handleGoogleButtonClick}
-                  className="relative overflow-hidden w-full bg-slate-900 hover:bg-slate-950 text-amber-400 font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-3 shadow-[0_4px_12px_rgba(217,119,6,0.15)] border border-amber-500/40 hover:border-amber-400 active:scale-[0.98] cursor-pointer group"
+                  className="relative overflow-hidden w-full bg-indigo-600 hover:bg-indigo-50 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-3 shadow-[0_4px_15px_rgba(99,102,241,0.3)] border border-indigo-500/50 hover:border-indigo-400 active:scale-[0.98] cursor-pointer group"
                 >
                   <svg className="w-4.5 h-4.5 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#F59E0B" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#D97706" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBF24" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#F59E0B" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                    <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#e0e7ff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#c7d2fe" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
-                  <span className="tracking-wider uppercase font-sans font-extrabold text-[11px]">Sign Up with Google Gold</span>
+                  <span className="tracking-wider uppercase font-sans font-extrabold text-[11px]">REGISTER MEMBER PROFILE</span>
                 </button>
               </div>
             </div>
@@ -416,14 +416,14 @@ export default function AuthScreen({
 
       {/* SIMULATED GOOGLE AUTH CHOOSER DIALOG */}
       {showGoogleSimChooser && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-[340px] bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-amber-500/30 flex flex-col justify-between"
+            className="w-full max-w-[340px] bg-slate-900 rounded-3xl shadow-[0_10px_50px_rgba(0,0,0,0.8)] overflow-hidden border border-white/15 flex flex-col justify-between"
           >
             {/* Header / Google Brand Banner */}
-            <div className="p-6 text-center pb-4 border-b border-amber-500/10 relative bg-amber-50/20">
+            <div className="p-6 text-center pb-4 border-b border-white/10 relative bg-slate-950/30">
               <button
                 type="button"
                 onClick={() => {
@@ -439,7 +439,7 @@ export default function AuthScreen({
                     setSimSuccessMsg("");
                   }
                 }}
-                className="absolute right-4 top-4 text-slate-400 hover:text-amber-600 transition-colors p-1"
+                className="absolute right-4 top-4 text-slate-400 hover:text-white transition-colors p-1"
                 title={selectedSimUser ? "Back to account list" : "Exit single sign-on"}
               >
                 <X className="w-4 h-4" />
@@ -455,14 +455,14 @@ export default function AuthScreen({
                 <span className="text-amber-500 font-extrabold text-xl">e</span>
                 <span className="text-[9px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.5 rounded-sm ml-1 uppercase shadow-xs">Gold</span>
               </div>
-              <h3 className="text-sm font-black text-slate-800 tracking-tight">
+              <h3 className="text-sm font-black text-white tracking-tight">
                 {selectedSimUser ? "Identity Verification" : "VIP Account Gateway"}
               </h3>
               <p className="text-[10px] text-slate-400 mt-1">
                 {selectedSimUser ? (
                   <span>Please enter security password to unlock portal access</span>
                 ) : (
-                  <span>to access exclusive <span className="font-bold text-amber-600">Nexus Gym Gold Panel</span></span>
+                  <span>to access exclusive <span className="font-serif italic font-bold text-indigo-400">Iron Check Gym Workspace</span></span>
                 )}
               </p>
             </div>
@@ -471,11 +471,11 @@ export default function AuthScreen({
               isResettingSimPassword ? (
                 /* Password Reset Screen */
                 <div className="p-5 space-y-4">
-                  <div className="flex flex-col items-center text-center bg-amber-50/10 border border-amber-500/10 p-3 rounded-2xl">
-                    <div className="w-11 h-11 rounded-full bg-amber-100 text-amber-700 font-bold text-xs uppercase flex items-center justify-center border border-amber-200 mb-2 animate-bounce">
-                      <KeyRound className="w-5 h-5 text-amber-600" />
+                  <div className="flex flex-col items-center text-center bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-2xl">
+                    <div className="w-11 h-11 rounded-full bg-indigo-600/20 text-indigo-400 font-bold text-xs uppercase flex items-center justify-center border border-indigo-505/20 mb-2 animate-bounce">
+                      <KeyRound className="w-5 h-5 text-indigo-400" />
                     </div>
-                    <h4 className="text-xs font-black text-slate-800">Set Security Password</h4>
+                    <h4 className="text-xs font-black text-white">Set Security Password</h4>
                     <span className="text-[10px] text-slate-400 block mt-0.5">{selectedSimUser.email}</span>
                   </div>
 
@@ -493,12 +493,12 @@ export default function AuthScreen({
                             setNewSimPassword(e.target.value);
                             setSimPasswordError("");
                           }}
-                          className="w-full bg-white border border-amber-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-2 pl-3 pr-10 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                          className="w-full bg-slate-950 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 pl-3 pr-10 text-xs text-white placeholder-slate-500 focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer p-0.5"
                         >
                           {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                         </button>
@@ -517,12 +517,12 @@ export default function AuthScreen({
                           setConfirmNewSimPassword(e.target.value);
                           setSimPasswordError("");
                         }}
-                        className="w-full bg-white border border-amber-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-2 px-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                        className="w-full bg-slate-950 border border-white/10 focus:border-indigo-500/40 rounded-xl py-2 px-3 text-xs text-white placeholder-slate-500 focus:outline-none"
                       />
                     </div>
 
                     {simPasswordError && (
-                      <p className="text-[9px] text-red-500 font-extrabold text-center mt-1">
+                      <p className="text-[9px] text-rose-500 font-extrabold text-center mt-1">
                         {simPasswordError}
                       </p>
                     )}
@@ -537,7 +537,7 @@ export default function AuthScreen({
                         setConfirmNewSimPassword("");
                         setSimPasswordError("");
                       }}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-705 text-slate-700 font-bold py-2 rounded-xl text-[11px] transition-all cursor-pointer text-center"
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 border border-white/5 text-slate-300 font-bold py-2 rounded-xl text-[11px] transition-all cursor-pointer text-center"
                     >
                       Cancel
                     </button>
@@ -566,7 +566,7 @@ export default function AuthScreen({
                         setSimSuccessMsg("Password updated successfully! Enter it below to unlock.");
                         setTimeout(() => setSimSuccessMsg(""), 5000);
                       }}
-                      className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black py-2 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md active:scale-[0.98]"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-2 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md active:scale-[0.98]"
                     >
                       Save Password
                     </button>
@@ -575,18 +575,18 @@ export default function AuthScreen({
               ) : (
                 /* Password Verification Screen */
                 <div className="p-5 space-y-4">
-                  <div className="flex flex-col items-center text-center bg-amber-50/10 border border-amber-500/10 p-3 rounded-2xl">
-                    <div className="w-11 h-11 rounded-full bg-amber-100 text-amber-700 font-bold text-xs uppercase flex items-center justify-center border border-amber-200 mb-2">
+                  <div className="flex flex-col items-center text-center bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-2xl">
+                    <div className="w-11 h-11 rounded-full bg-indigo-600/20 text-indigo-400 font-bold text-xs uppercase flex items-center justify-center border border-indigo-500/30 mb-2">
                       {selectedSimUser.name.slice(0, 2).toUpperCase()}
                     </div>
-                    <h4 className="text-xs font-black text-slate-800">{selectedSimUser.name}</h4>
+                    <h4 className="text-xs font-black text-white">{selectedSimUser.name}</h4>
                     <span className="text-[10px] text-slate-400 block mt-0.5">{selectedSimUser.email}</span>
                   </div>
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-baseline mb-0.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">
-                        Enter Google Gold Password
+                        Enter Security Password
                       </label>
                       <button
                         type="button"
@@ -596,7 +596,7 @@ export default function AuthScreen({
                           setConfirmNewSimPassword("");
                           setSimPasswordError("");
                         }}
-                        className="text-[9px] text-amber-600 hover:text-amber-700 font-extrabold hover:underline uppercase tracking-wide cursor-pointer"
+                        className="text-[9px] text-indigo-405 text-indigo-400 hover:text-indigo-300 font-extrabold hover:underline uppercase tracking-wide cursor-pointer"
                       >
                         Forgot Password?
                       </button>
@@ -610,24 +610,24 @@ export default function AuthScreen({
                           setSimEnteredPassword(e.target.value);
                           setSimPasswordError("");
                         }}
-                        className="w-full bg-white border border-amber-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl py-2 pl-3 pr-10 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+                        className="w-full bg-slate-950 border border-white/10 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 pl-3 pr-10 text-xs text-white placeholder-slate-500 focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowSimPassword(!showSimPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer p-0.5"
                       >
                         {showSimPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                     
                     {simPasswordError && (
-                      <p className="text-[9px] text-red-500 font-extrabold text-center mt-1">
+                      <p className="text-[9px] text-rose-500 font-extrabold text-center mt-1">
                         {simPasswordError}
                       </p>
                     )}
                     {simSuccessMsg && (
-                      <p className="text-[9px] text-emerald-600 font-extrabold text-center mt-1">
+                      <p className="text-[9px] text-emerald-400 font-extrabold text-center mt-1">
                         {simSuccessMsg}
                       </p>
                     )}
@@ -641,7 +641,7 @@ export default function AuthScreen({
                         setSimEnteredPassword("");
                         setSimPasswordError("");
                       }}
-                      className="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-bold py-2 rounded-xl text-[11px] transition-all cursor-pointer text-center"
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 border border-white/5 text-slate-300 font-bold py-2 rounded-xl text-[11px] transition-all cursor-pointer text-center"
                     >
                       Back
                     </button>
@@ -670,11 +670,11 @@ export default function AuthScreen({
                           onLogin(selectedSimUser.role, selectedSimUser.email, selectedSimUser.name, selectedSimUser.uid);
                         }, 1000);
                       }}
-                      className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-slate-400 disabled:to-slate-500 text-slate-950 font-black py-2 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md active:scale-[0.98]"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-850 text-white font-extrabold py-2 rounded-xl text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer shadow-md active:scale-[0.98]"
                     >
                       {simCustomLoading ? (
                         <>
-                          <span className="w-3 h-3 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                          <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                           Authenticating...
                         </>
                       ) : (
@@ -702,15 +702,15 @@ export default function AuthScreen({
                       setSimEnteredPassword("");
                       setSimPasswordError("");
                     }}
-                    className="w-full p-2.5 rounded-2xl hover:bg-amber-50/30 border border-slate-100 hover:border-amber-400/40 text-left transition-all flex items-center gap-3 cursor-pointer group"
+                    className="w-full p-2.5 rounded-2xl bg-slate-950/40 hover:bg-white/5 border border-white/5 hover:border-indigo-500/40 text-left transition-all flex items-center gap-3 cursor-pointer group"
                   >
-                    <div className="w-8 h-8 shrink-0 rounded-full bg-amber-100 text-amber-700 font-bold text-xs uppercase flex items-center justify-center border border-amber-200">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-indigo-600/20 text-indigo-400 font-bold text-xs uppercase flex items-center justify-center border border-indigo-500/20">
                       MJ
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-bold text-slate-800">Madhav Jha</span>
-                        <span className="text-[8px] bg-amber-100 text-amber-800 font-bold uppercase px-1.5 py-0.2 rounded-md border border-amber-200">Founder Admin</span>
+                        <span className="text-xs font-bold text-white">Madhav Jha</span>
+                        <span className="text-[8px] bg-indigo-950 text-indigo-400 font-bold uppercase px-1.5 py-0.2 rounded-md border border-indigo-500/30">Founder Admin</span>
                       </div>
                       <span className="text-[10px] text-slate-400 block truncate leading-none mt-0.5">madhavjha514@gmail.com</span>
                     </div>
@@ -729,15 +729,15 @@ export default function AuthScreen({
                       setSimEnteredPassword("");
                       setSimPasswordError("");
                     }}
-                    className="w-full p-2.5 rounded-2xl hover:bg-amber-50/30 border border-slate-100 hover:border-amber-400/40 text-left transition-all flex items-center gap-3 cursor-pointer"
+                    className="w-full p-2.5 rounded-2xl bg-slate-950/40 hover:bg-white/5 border border-white/5 hover:border-indigo-500/40 text-left transition-all flex items-center gap-3 cursor-pointer"
                   >
-                    <div className="w-8 h-8 shrink-0 rounded-full bg-amber-50 text-amber-600 font-bold text-xs uppercase flex items-center justify-center border border-amber-100">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-amber-500/10 text-amber-400 font-bold text-xs uppercase flex items-center justify-center border border-amber-500/20">
                       AS
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-bold text-slate-800 text-left">Arjun Sharma</span>
-                        <span className="text-[8px] bg-emerald-50 text-emerald-600 font-bold uppercase px-1.5 py-0.2 rounded-md">Active Member</span>
+                        <span className="text-xs font-bold text-white text-left">Arjun Sharma</span>
+                        <span className="text-[8px] bg-emerald-950 text-emerald-400 font-bold uppercase px-1.5 py-0.2 rounded-md border border-emerald-500/20">Active Member</span>
                       </div>
                       <span className="text-[10px] text-slate-400 block truncate leading-none mt-0.5">arjun.gym@gmail.com</span>
                     </div>
@@ -756,15 +756,15 @@ export default function AuthScreen({
                       setSimEnteredPassword("");
                       setSimPasswordError("");
                     }}
-                    className="w-full p-2.5 rounded-2xl hover:bg-amber-50/30 border border-slate-100 hover:border-amber-400/40 text-left transition-all flex items-center gap-3 cursor-pointer"
+                    className="w-full p-2.5 rounded-2xl bg-slate-950/40 hover:bg-white/5 border border-white/5 hover:border-indigo-500/40 text-left transition-all flex items-center gap-3 cursor-pointer"
                   >
-                    <div className="w-8 h-8 shrink-0 rounded-full bg-amber-50 text-amber-600 font-bold text-xs uppercase flex items-center justify-center border border-amber-100">
+                    <div className="w-8 h-8 shrink-0 rounded-full bg-amber-500/10 text-amber-400 font-bold text-xs uppercase flex items-center justify-center border border-amber-500/20">
                       JM
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-bold text-slate-800 text-left">Jessica Miller</span>
-                        <span className="text-[8px] bg-rose-50 text-rose-600 font-bold uppercase px-1.5 py-0.2 rounded-md animate-pulse">Overdue Arrears</span>
+                        <span className="text-xs font-bold text-white text-left">Jessica Miller</span>
+                        <span className="text-[8px] bg-rose-950 text-rose-400 font-bold uppercase px-1.5 py-0.2 rounded-md animate-pulse border border-rose-500/20">Overdue Arrears</span>
                       </div>
                       <span className="text-[10px] text-slate-400 block truncate leading-none mt-0.5">jessica.fit@gmail.com</span>
                     </div>
@@ -788,15 +788,15 @@ export default function AuthScreen({
                           setSimEnteredPassword("");
                           setSimPasswordError("");
                         }}
-                        className="w-full p-2.5 rounded-2xl hover:bg-amber-50/30 border border-slate-100 hover:border-amber-400/40 text-left transition-all flex items-center gap-3 cursor-pointer group"
+                        className="w-full p-2.5 rounded-2xl bg-slate-950/40 hover:bg-white/5 border border-white/5 hover:border-indigo-500/40 text-left transition-all flex items-center gap-3 cursor-pointer group"
                       >
-                        <div className="w-8 h-8 shrink-0 rounded-full bg-amber-50 text-amber-600 font-bold text-xs uppercase flex items-center justify-center border border-amber-100">
+                        <div className="w-8 h-8 shrink-0 rounded-full bg-indigo-500/10 text-indigo-400 font-bold text-xs uppercase flex items-center justify-center border border-indigo-500/20">
                           {initials}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-baseline">
-                            <span className="text-xs font-bold text-slate-800 text-left">{u.name}</span>
-                            <span className="text-[8px] bg-amber-100 text-amber-800 font-bold uppercase px-1.5 py-0.2 rounded-md border border-amber-200">
+                            <span className="text-xs font-bold text-white text-left">{u.name}</span>
+                            <span className="text-[8px] bg-indigo-950 text-indigo-400 font-bold uppercase px-1.5 py-0.2 rounded-md border border-indigo-500/30">
                               {displayRole}
                             </span>
                           </div>
@@ -808,51 +808,51 @@ export default function AuthScreen({
                 </div>
 
                 {/* Custom Account Registration/Login Block */}
-                <div className="bg-slate-50 p-4 border-t border-amber-500/10 space-y-2">
-                  <span className="text-[9px] font-extrabold text-amber-600 uppercase tracking-widest block font-sans">Use Custom Google Account</span>
+                <div className="bg-slate-950/80 p-4 border-t border-white/10 space-y-2">
+                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block font-sans">Use Custom Google Account</span>
                   <div className="space-y-1.5">
                     <input
                       type="text"
                       placeholder="Full Name (e.g. Rahul Sen)"
                       value={simGoogleCustomName}
                       onChange={(e) => setSimGoogleCustomName(e.target.value)}
-                      className="w-full bg-white border border-amber-200/60 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg py-1 px-2.5 text-[11px] text-slate-800 placeholder-slate-400 focus:outline-none"
+                      className="w-full bg-slate-905 bg-slate-900 border border-white/10 focus:border-indigo-500 rounded-lg py-1.5 px-2.5 text-[11px] text-white placeholder-slate-500 focus:outline-none"
                     />
                     <input
                       type="email"
                       placeholder="name@gmail.com"
                       value={simGoogleCustomEmail}
                       onChange={(e) => setSimGoogleCustomEmail(e.target.value)}
-                      className="w-full bg-white border border-amber-200/60 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg py-1 px-2.5 text-[11px] text-slate-800 placeholder-slate-400 focus:outline-none"
+                      className="w-full bg-slate-905 bg-slate-900 border border-white/10 focus:border-indigo-500 rounded-lg py-1.5 px-2.5 text-[11px] text-white placeholder-slate-500 focus:outline-none"
                     />
                     <input
                       type="password"
                       placeholder="Choose Security Password (e.g. pass123)"
                       value={simGoogleCustomPassword}
                       onChange={(e) => setSimGoogleCustomPassword(e.target.value)}
-                      className="w-full bg-white border border-amber-200/60 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-lg py-1 px-2.5 text-[11px] text-slate-800 placeholder-slate-400... focus:outline-none"
+                      className="w-full bg-slate-905 bg-slate-900 border border-white/10 focus:border-indigo-500 rounded-lg py-1.5 px-2.5 text-[11px] text-white placeholder-slate-500 focus:outline-none"
                     />
                     
-                    <div className="flex justify-between items-center bg-white border border-slate-200 py-1.5 px-2.5 rounded-lg">
+                    <div className="flex justify-between items-center bg-slate-900 border border-white/10 py-1.5 px-2.5 rounded-lg">
                       <span className="text-[9px] font-extrabold text-slate-400 uppercase font-sans">Google Sign-in Role</span>
                       <div className="flex gap-2.5">
-                        <label className="text-[9px] text-slate-600 flex items-center gap-1 cursor-pointer font-bold">
+                        <label className="text-[9px] text-slate-300 flex items-center gap-1 cursor-pointer font-bold">
                           <input
                             type="radio"
                             name="sim-google-role"
                             checked={simGoogleCustomRole === "customer"}
                             onChange={() => setSimGoogleCustomRole("customer")}
-                            className="accent-amber-600 w-3 h-3"
+                            className="accent-indigo-505 accent-indigo-500 w-3 h-3"
                           />
                           Member
                         </label>
-                        <label className="text-[9px] text-slate-600 flex items-center gap-1 cursor-pointer font-bold">
+                        <label className="text-[9px] text-slate-300 flex items-center gap-1 cursor-pointer font-bold">
                           <input
                             type="radio"
                             name="sim-google-role"
                             checked={simGoogleCustomRole === "admin"}
                             onChange={() => setSimGoogleCustomRole("admin")}
-                            className="accent-amber-600 w-3 h-3"
+                            className="accent-indigo-505 accent-indigo-500 w-3 h-3"
                           />
                           Admin
                         </label>
