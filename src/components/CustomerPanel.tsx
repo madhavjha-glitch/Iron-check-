@@ -95,7 +95,7 @@ export default function CustomerPanel({
   const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([
     {
       role: "assistant",
-      content: `Welcome to the Iron Check AI Fitness Lab! 🏋️‍♂️ I am **Coach Iron**, your dedicated gym partner and bodybuilding scientist. Ask me any questions on compound movements, splits, macro planning, recovery times, form improvement, or supplements!`,
+      content: `Welcome to the Zymnix AI Fitness Lab! 🏋️‍♂️ I am **Coach Zymnix**, your dedicated gym partner and bodybuilding scientist. Ask me any questions on compound movements, splits, macro planning, recovery times, form improvement, or supplements!`,
     },
   ]);
 
@@ -187,7 +187,7 @@ export default function CustomerPanel({
 
     const standardQrObj = {
       gymId: "gym_hq_1",
-      gymName: "Iron Check Gym",
+      gymName: "Zymnix Gym",
       type: "GYM_ENTRANCE",
       createdAt: new Date().toISOString(),
       version: "1.0"
@@ -427,7 +427,7 @@ export default function CustomerPanel({
         body: JSON.stringify({ messages: updatedMessages }),
       });
       if (!response.ok) {
-        throw new Error("Coach Iron is in active set rest. Could not connect to API.");
+        throw new Error("Coach Zymnix is in active set rest. Could not connect to API.");
       }
       const data = await response.json();
       if (data.reply) {
@@ -440,7 +440,7 @@ export default function CustomerPanel({
         ...updatedMessages,
         {
           role: "assistant",
-          content: `❌ [Connection Offline] Coach Iron says: "Handshake failed, but remember: consistency trumps perfection! Push through your compound movements today." (${err.message})`,
+          content: `❌ [Connection Offline] Coach Zymnix says: "Handshake failed, but remember: consistency trumps perfection! Push through your compound movements today." (${err.message})`,
         },
       ]);
     } finally {
@@ -490,10 +490,10 @@ export default function CustomerPanel({
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-white/5 bg-slate-950/80 p-4 backdrop-blur-md">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 font-black text-white shadow shadow-indigo-600/30">
-            IC
+            Z
           </div>
           <div>
-            <h1 className="text-xs font-black tracking-wider uppercase text-white leading-none">Iron Check</h1>
+            <h1 className="text-xs font-black tracking-wider uppercase text-white leading-none">Zymnix</h1>
             <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-widest block mt-0.5">Central Hub</span>
           </div>
         </div>
@@ -1118,7 +1118,7 @@ export default function CustomerPanel({
                     <Bot className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white tracking-wide leading-none">Coach Iron</h4>
+                    <h4 className="text-xs font-bold text-white tracking-wide leading-none">Coach Zymnix</h4>
                     <span className="text-[9px] text-emerald-400 font-bold block mt-0.5 tracking-wider uppercase">Active Gym Partner</span>
                   </div>
                 </div>
@@ -1203,7 +1203,7 @@ export default function CustomerPanel({
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask Coach Iron..."
+                  placeholder="Ask Coach Zymnix..."
                   disabled={sendingMessage}
                   className="flex-1 bg-slate-950 border border-white/10 text-white rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-550 outline-none"
                 />
@@ -1222,10 +1222,10 @@ export default function CustomerPanel({
         <button
           onClick={() => setChatbotOpen(!chatbotOpen)}
           className="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
-          title="Coach Iron AI Chatbot"
+          title="Coach Zymnix AI Chatbot"
         >
           <Bot className="w-5 h-5 text-white" />
-          <span className="text-[10px] font-black tracking-wider uppercase select-none mr-1">Coach Iron AI</span>
+          <span className="text-[10px] font-black tracking-wider uppercase select-none mr-1">Coach Zymnix AI</span>
         </button>
       </div>
 

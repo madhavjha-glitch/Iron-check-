@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Zymnix Gate Status Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex flex-col justify-center items-center">
+  <div class="w-full max-w-md p-6 bg-slate-900 border border-white/10 rounded-2xl shadow-xl space-y-6">
+    <div class="text-center">
+      <h1 class="text-lg font-black tracking-widest uppercase text-indigo-400">Zymnix Gate Status</h1>
+      <p class="text-[10px] text-slate-400">Real-time Handshake Monitors</p>
+    </div>
+    <div id="gate" class="p-6 rounded-xl border border-dashed border-indigo-500/20 text-center space-y-3">
+      <div class="text-xs uppercase font-mono tracking-wider text-slate-400">Current State</div>
+      <div id="state" class="text-2xl font-black text-rose-500">LOCKED / बंद है</div>
+    </div>
+    <div class="space-y-3">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-400">Live Access Logs</h3>
+      <div id="logs" class="text-[11px] font-mono space-y-1 bg-slate-950 p-3 rounded-lg border border-white/5 h-32 overflow-y-auto">
+        <div class="text-slate-500">Waiting for gate handshake...</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const update = async () => {
+      try {
+        const res = await fetch('/api/qr/status/gym_hq_1');
+        const data = await res.json();
+        const gate = data.gate;
+        const active = gate && gate.gateStatus === 'unlocked';
+        document.getElementById('state').innerText = active ? '🔓 UNLOCKED / खुला है' : '🔒 LOCKED / बंद है';
+        document.getElementById('state').className = `text-2xl font-black \${active ? 'text-emerald-400' : 'text-rose-500'}`;
+        const logsEl = document.getElementById('logs');
+        if (gate && gate.accessLog && gate.accessLog.length > 0) {
+          logsEl.innerHTML = gate.accessLog.map(l => `
+            <div class="\${l.status === 'granted' ? 'text-emerald-400' : 'text-rose-400'}">
+              [\${new Date(l.timestamp).toLocaleTimeString()}] Athlete \${l.memberId}: \${l.status.toUpperCase()}
+            </div>
+          `).join('');
+        }
+      } catch (e) {}
+    };
+    setInterval(update, 2000);
+    update();
+  </script>
+</body>
+</html>

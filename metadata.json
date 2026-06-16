@@ -1,6 +1,6 @@
 {
-  "name": "Gym Management",
-  "description": "A comprehensive dual-role Gym Management App containing Admin and Customer member panels, QR checking, workout programs, automated fee alerts, and tracking.",
+  "name": "zymnix",
+  "description": "A comprehensive dual-role Gym Management App containing Admin and Customer member panels, QR checking, workout programs, automated fee alerts, and tracking under the Zymnix ecosystem.",
   "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

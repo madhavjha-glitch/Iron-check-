@@ -407,7 +407,7 @@ export default function AuthScreen({
       {/* Footer Branding */}
       <div className="text-center pb-2 z-10">
         <p className="text-[10px] text-slate-400">
-          Professional Gym Management Suite v2.4.0
+          zymnix - Intelligent Gym Suite v2.4.0
         </p>
         <p className="text-[9px] text-slate-400 mt-1">
           Secure biometric token handshake & full-stack replication
@@ -462,7 +462,7 @@ export default function AuthScreen({
                 {selectedSimUser ? (
                   <span>Please enter security password to unlock portal access</span>
                 ) : (
-                  <span>to access exclusive <span className="font-serif italic font-bold text-indigo-400">Iron Check Gym Workspace</span></span>
+                  <span>to access exclusive <span className="font-serif italic font-bold text-indigo-400">Zymnix Gym Workspace</span></span>
                 )}
               </p>
             </div>

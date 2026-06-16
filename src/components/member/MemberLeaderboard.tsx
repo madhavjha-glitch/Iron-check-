@@ -159,9 +159,9 @@ export default function MemberLeaderboard() {
       <div className="bg-gradient-to-r from-indigo-700 to-indigo-900 border border-white/10 rounded-3xl p-5 shadow-lg relative overflow-hidden">
         <div className="absolute right-0 top-0 h-24 w-24 bg-white/5 blur-xl rounded-full" />
         <span className="text-[9px] text-indigo-200 font-bold uppercase tracking-widest block">Gym Ranks</span>
-        <h3 className="text-sm font-black text-white uppercase tracking-wider mt-0.5">Iron Check Leaderboard</h3>
+        <h3 className="text-sm font-black text-white uppercase tracking-wider mt-0.5">Zymnix Leaderboard</h3>
         <p className="text-[11px] text-slate-300 leading-normal mt-1">
-          Perform check-ins, log training sets, and push heavy lifting PRs to claim top scores. Iron Check rewards raw continuous discipline.
+          Perform check-ins, log training sets, and push heavy lifting PRs to claim top scores. Zymnix rewards raw continuous discipline.
         </p>
       </div>
 

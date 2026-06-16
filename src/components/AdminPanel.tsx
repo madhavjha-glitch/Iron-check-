@@ -306,7 +306,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
       if (isFeeUnpaid) {
         setQrScanFeedback("ACCESS GRANTED (GRACE ACTIVE)! Active Arrears: Monthly premium overdue.");
       } else {
-        setQrScanFeedback("ACCESS GRANTED! Welcome back to Iron Check Gym.");
+        setQrScanFeedback("ACCESS GRANTED! Welcome back to Zymnix Gym.");
       }
       playScanSound(true);
     } catch (err: any) {
@@ -948,8 +948,8 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                   <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-indigo-500/75 rounded-br-md" />
                   
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=iron_check_front_desk_checkin&color=ffffff&bgcolor=020617"
-                    alt="Iron Check Attendance Gate QR Token"
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=zymnix_front_desk_checkin&color=ffffff&bgcolor=020617"
+                    alt="Zymnix Attendance Gate QR Token"
                     className="w-32 h-32 select-none bg-slate-950 mx-auto block"
                     referrerPolicy="no-referrer"
                   />
@@ -2252,7 +2252,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
 
               <div className="text-center space-y-6">
                 <div>
-                  <span className="text-[10px] font-black tracking-widest text-indigo-650 uppercase font-mono">Iron Gym Enterprise System</span>
+                  <span className="text-[10px] font-black tracking-widest text-indigo-650 uppercase font-mono">Zymnix Gym Enterprise System</span>
                   <h2 className="text-xl font-black tracking-tight text-slate-950 uppercase mt-1 font-serif">SELF-SERVE ATHLETE GATEWAY</h2>
                   <p className="text-xs text-slate-500 mt-1 font-semibold">Place this printed poster on your physical gate entrance or reception counter</p>
                 </div>
@@ -2260,20 +2260,20 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                 {/* Massive QR Identifier */}
                 <div className="p-6 bg-slate-100 rounded-3xl inline-block border-2 border-dashed border-indigo-600/30">
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=iron_check_front_desk_checkin&color=020617&bgcolor=ffffff"
-                    alt="Iron Check Master Gate Access Code"
+                    src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=zymnix_front_desk_checkin&color=020617&bgcolor=ffffff"
+                    alt="Zymnix Master Gate Access Code"
                     className="w-56 h-56 select-none mx-auto"
                     referrerPolicy="no-referrer"
                   />
                   <div className="mt-3 text-[10px] font-mono text-slate-500 font-bold tracking-widest">
-                    GATE TOKEN: iron_check_front_desk_checkin
+                    GATE TOKEN: zymnix_front_desk_checkin
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-2 text-left max-w-sm mx-auto">
                   <h4 className="text-xs font-black uppercase tracking-wide text-center text-slate-950">HOW TO CHECK IN:</h4>
-                  <ol className="text-xs text-slate-750 space-y-1.5 list-decimal pl-4 leading-relaxed font-semibold">
-                    <li>Open your smartphone and log into the <strong>Iron Check Member App</strong>.</li>
+                  <ol className="text-xs text-slate-755 space-y-1.5 list-decimal pl-4 leading-relaxed font-semibold">
+                    <li>Open your smartphone and log into the <strong>Zymnix Member App</strong>.</li>
                     <li>On the dashboard, tap the <strong>"Scan Gate QR"</strong> button.</li>
                     <li>Align your camera to scan this master Gate QR Poster.</li>
                     <li>Once checked in, the gate will unlock automatically!</li>

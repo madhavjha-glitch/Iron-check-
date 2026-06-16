@@ -76,7 +76,7 @@ export default function MemberDashboard({
     try {
       const standardQrObj = {
         gymId: "gym_hq_1",
-        gymName: "Iron Check Gym",
+        gymName: "Zymnix Gym",
         type: "GYM_ENTRANCE",
         createdAt: new Date().toISOString(),
         version: "1.0"
