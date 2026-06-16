@@ -48,6 +48,7 @@ import {
   triggerGateHandshakeRecord,
   subscribeToGymGate,
   lockGateManual,
+  setGateLockdownManual,
 } from "../firebase";
 
 interface AdminPanelProps {
@@ -146,10 +147,10 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
   const [bulkImportSuccess, setBulkImportSuccess] = useState(false);
 
   // Custom Pricing tier values (Settings Configuration simulation)
-  const [hourlyTier, setHourlyTier] = useState("10");
-  const [silverTier, setSilverTier] = useState("45");
-  const [goldTier, setGoldTier] = useState("120");
-  const [platinumTier, setPlatinumTier] = useState("400");
+  const [hourlyTier, setHourlyTier] = useState("500");
+  const [silverTier, setSilverTier] = useState("2499");
+  const [goldTier, setGoldTier] = useState("5999");
+  const [platinumTier, setPlatinumTier] = useState("19999");
   const [autoRenewSetting, setAutoRenewSetting] = useState(true);
 
   // Gym Details simulation settings
@@ -648,7 +649,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
   const activeLogsToday = attendance.filter((log) => log.dateString === todayString);
   const checkedInCount = activeLogsToday.length;
   const unpaidDuesCount = members.filter((m) => m.feeStatus === "unpaid").length;
-  const simulatedActiveRevenue = members.filter((m) => m.feeStatus === "paid").length * parseInt(silverTier || "45");
+  const simulatedActiveRevenue = members.filter((m) => m.feeStatus === "paid").length * parseInt(silverTier || "2499");
 
   return (
     <div className="flex-1 flex flex-col bg-slate-950 pb-12 text-slate-100 min-h-screen">
@@ -710,6 +711,36 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
       </div>
 
       <div className="px-5 space-y-5 mt-5">
+        {/* 🚨 SYSTEM-WIDE EMERGENCY LOCKDOWN WARNING */}
+        {gymGate?.lockdownMode && (
+          <div className="bg-red-500/10 border-2 border-red-500/35 text-red-400 p-3.5 rounded-2xl flex items-center gap-3 animate-pulse shadow-md font-mono text-[11px] font-bold">
+            <span className="text-xl">🚨</span>
+            <div className="flex-1">
+              <span className="uppercase block text-red-500 font-extrabold tracking-wider">CRITICAL BLACKOUT LOCKDOWN IN PROGRESS</span>
+              <span className="font-sans block text-slate-400 text-[10px] font-medium leading-normal">
+                Ingress turnstiles are securely locked. Mobile coupon passes and QR scan check-ins are temporarily bypassed and denied under Directive-1 security protocol.
+              </span>
+            </div>
+            <button 
+              onClick={async () => {
+                await setGateLockdownManual(false);
+                try {
+                  await fetch("/api/gym/gate/lockdown", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ lockdown: false })
+                  });
+                } catch (e) {
+                  console.warn("Failed syncing lockdown to server memory:", e);
+                }
+                playScanSound(true);
+              }}
+              className="bg-red-650 hover:bg-red-500 text-white rounded-lg px-2.5 py-1 text-[10px] cursor-pointer"
+            >
+              DISABLE LOCKDOWN
+            </button>
+          </div>
+        )}
         {/* TAB 1: INTEGRATED OVERVIEW DASHBOARD */}
         {activeTab === "dashboard" && (
           <div className="space-y-5">
@@ -747,8 +778,8 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                   <DollarSign className="w-12 h-12" />
                 </div>
                 <p className="text-[10px] uppercase text-slate-400 font-bold tracking-widest">Collections</p>
-                <p className="text-2xl font-extrabold text-indigo-400 mt-1">${simulatedActiveRevenue}</p>
-                <p className="text-[9px] text-slate-400 mt-1 font-semibold">Based on ${silverTier}/mo rate</p>
+                <p className="text-2xl font-extrabold text-indigo-400 mt-1">₹{simulatedActiveRevenue.toLocaleString("en-IN")}</p>
+                <p className="text-[9px] text-slate-400 mt-1 font-semibold font-sans">Based on ₹{silverTier}/mo rate</p>
               </div>
             </div>
 
@@ -1587,10 +1618,10 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                                 })}
                                 className="text-[10px] font-bold bg-slate-900 border border-white/10 text-indigo-404 text-indigo-400 px-2.5 py-1 rounded-lg cursor-pointer outline-none font-semibold"
                               >
-                                <option value="1month">1 Month (${silverTier})</option>
-                                <option value="3months">3 Months (${goldTier})</option>
-                                <option value="6months">6 Months ($220)</option>
-                                <option value="1year">1 Year (${platinumTier})</option>
+                                <option value="1month">1 Month (₹{silverTier})</option>
+                                <option value="3months">3 Months (₹{goldTier})</option>
+                                <option value="6months">6 Months (₹4,999)</option>
+                                <option value="1year">1 Year (₹{platinumTier})</option>
                               </select>
                             </div>
                           )}
@@ -1704,7 +1735,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                     <Flame className="w-3.5 h-3.5 text-amber-500" />
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-300">$</span>
+                    <span className="text-xs font-bold text-slate-300">₹</span>
                     <input
                       type="number"
                       value={hourlyTier}
@@ -1722,7 +1753,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                     <Award className="w-3.5 h-3.5 text-slate-300" />
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-300">$</span>
+                    <span className="text-xs font-bold text-slate-300">₹</span>
                     <input
                       type="number"
                       value={silverTier}
@@ -1740,7 +1771,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                     <Award className="w-3.5 h-3.5 text-amber-400" />
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-300">$</span>
+                    <span className="text-xs font-bold text-slate-300">₹</span>
                     <input
                       type="number"
                       value={goldTier}
@@ -1758,7 +1789,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                     <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-300">$</span>
+                    <span className="text-xs font-bold text-slate-300">₹</span>
                     <input
                       type="number"
                       value={platinumTier}
@@ -2224,6 +2255,83 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                       );
                     })}
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 🚨 SECURITY & CRITICAL ACCESS HARDWARE COMMANDS */}
+            <div className="bg-slate-900 border border-white/10 p-5 rounded-2xl space-y-4 shadow-xl">
+              <div>
+                <h3 className="text-xs font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                  <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" />
+                  Security & Access Hardware Override Command
+                </h3>
+                <p className="text-[9px] text-slate-400">Lockdown turnstile or release gates manually for direct visitor check-in</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-sans">
+                {/* 1. LOCKDOWN PROTOCOL CONTROLLER */}
+                <div className={`p-4 rounded-xl border transition-all ${
+                  gymGate?.lockdownMode 
+                    ? "bg-rose-950/20 border-rose-500/30 ring-1 ring-rose-500/20" 
+                    : "bg-slate-950 border-white/5"
+                }`}>
+                  <span className="text-[9.5px] font-black uppercase text-slate-400 block tracking-wider font-mono">System Lockdown</span>
+                  <p className="text-[10px] text-slate-300 leading-normal mt-1 mb-3">
+                    Blocks all ingress access immediately. The gate simulator on members' panels will yield instant critical shutdown rejections.
+                  </p>
+
+                  <button
+                    onClick={async () => {
+                      const newLockdown = !gymGate?.lockdownMode;
+                      await setGateLockdownManual(newLockdown);
+                      // Sync to Node memory too so scanner API checks
+                      try {
+                        await fetch("/api/gym/gate/lockdown", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ lockdown: newLockdown })
+                        });
+                      } catch (e) {
+                        console.warn("Failed syncing lockdown to server memory:", e);
+                      }
+                      playScanSound(!newLockdown);
+                    }}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-black uppercase cursor-pointer transition-all tracking-wider ${
+                      gymGate?.lockdownMode
+                        ? "bg-rose-600 hover:bg-rose-500 text-white animate-pulse"
+                        : "bg-slate-800 hover:bg-slate-700 text-rose-455 text-rose-400 border border-rose-500/15"
+                    }`}
+                  >
+                    {gymGate?.lockdownMode ? "🚨 DEENGAGE SHUTDOWN" : "🔒 ENGAGE DISASTER LOCKDOWN"}
+                  </button>
+                </div>
+
+                {/* 2. STAFF TEMPORARY RELEASE BUTTON */}
+                <div className="p-4 rounded-xl bg-slate-950 border border-white/5 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[9.5px] font-black uppercase text-slate-400 block tracking-wider font-mono">10s Entrance Gate Release</span>
+                    <p className="text-[10px] text-slate-300 leading-normal mt-1 mb-2">
+                      Forks a temporary 10-second solenoid unlock sequence. Members can bypass credentials at physical turnstiles.
+                    </p>
+                  </div>
+
+                  <button
+                    disabled={gymGate?.lockdownMode}
+                    onClick={async () => {
+                      if (gymGate?.lockdownMode) return;
+                      // Trigger gate open in firebase
+                      await triggerGateHandshakeRecord("staff_release", "Manual Staff Override", "granted");
+                      playScanSound(true);
+                    }}
+                    className={`w-full py-2 px-3 rounded-lg text-xs font-black uppercase transition-all tracking-wider font-sans ${
+                      gymGate?.lockdownMode
+                        ? "bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed"
+                        : "bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-lg active:scale-97"
+                    }`}
+                  >
+                    🔓 RELEASE TURNSTILE DOOR
+                  </button>
                 </div>
               </div>
             </div>

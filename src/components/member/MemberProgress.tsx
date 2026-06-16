@@ -68,7 +68,7 @@ export default function MemberProgress({ onOpenPhotoModal, userPhoto, memberId }
   const [submitSuccess, setSubmitSuccess] = useState("");
 
   // Weight Metric unit selection (kg or lbs)
-  const [unit, setUnit] = useState<"kg" | "lbs">("lbs");
+  const [unit, setUnit] = useState<"kg" | "lbs">("kg");
 
   // Input States (Auto conversion support)
   const [feet, setFeet] = useState("5");
@@ -169,9 +169,8 @@ export default function MemberProgress({ onOpenPhotoModal, userPhoto, memberId }
         // Refresh items from API
         await fetchProgressLogs();
 
-        // Update latest weight locally
-        const resultingLbs = res.data.weight?.lbs || Math.round(kgNum * 2.20462);
-        localStorage.setItem("gym_weight_latest", String(resultingLbs));
+        // Update latest weight locally (in KG)
+        localStorage.setItem("gym_weight_latest", String(kgNum));
       } else {
         throw new Error("Unable to save tracking record");
       }
@@ -193,7 +192,7 @@ export default function MemberProgress({ onOpenPhotoModal, userPhoto, memberId }
 
       setDbProgressLogs(prev => [newMockLog, ...prev]);
       setSubmitSuccess(`Stored progress locally! Estimated BMI: ${calculatedBmi}`);
-      localStorage.setItem("gym_weight_latest", String(mockLbs));
+      localStorage.setItem("gym_weight_latest", String(kgNum));
     } finally {
       setIsSubmitting(false);
     }

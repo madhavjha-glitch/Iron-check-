@@ -5,18 +5,18 @@ export default function MemberLeaderboard() {
   const [activeLeaderboardType, setActiveLeaderboardType] = useState<"lifts" | "streak" | "calories">("lifts");
 
   // User claim lifting totals state
-  const [claimedSquat, setClaimedSquat] = useState("320");
-  const [claimedBench, setClaimedBench] = useState("230");
-  const [claimedDeadlift, setClaimedDeadlift] = useState("400");
+  const [claimedSquat, setClaimedSquat] = useState("145");
+  const [claimedBench, setClaimedBench] = useState("105");
+  const [claimedDeadlift, setClaimedDeadlift] = useState("180");
   const [claimSuccessMsg, setClaimSuccessMsg] = useState("");
-  const [userTotal, setUserTotal] = useState(950);
+  const [userTotal, setUserTotal] = useState(430);
 
   // Lifters list
   const [lifters, setLifters] = useState([
-    { rank: 1, name: "Arjun Sharma", total: "1340 lbs", details: "Squat: 480 / Bench: 315 / Deadlift: 545" },
-    { rank: 2, name: "Rohan Das", total: "1180 lbs", details: "Squat: 420 / Bench: 290 / Deadlift: 470" },
-    { rank: 3, name: "You (Member)", total: "950 lbs", details: "Squat: 320 / Bench: 230 / Deadlift: 400" },
-    { rank: 4, name: "Alexander King", total: "900 lbs", details: "Squat: 300 / Bench: 210 / Deadlift: 390" }
+    { rank: 1, name: "Arjun Sharma", total: "610 kg", details: "Squat: 220 / Bench: 140 / Deadlift: 250" },
+    { rank: 2, name: "Rohan Das", total: "535 kg", details: "Squat: 190 / Bench: 130 / Deadlift: 215" },
+    { rank: 3, name: "You (Member)", total: "430 kg", details: "Squat: 145 / Bench: 105 / Deadlift: 180" },
+    { rank: 4, name: "Alexander King", total: "410 kg", details: "Squat: 135 / Bench: 95 / Deadlift: 180" }
   ]);
 
   // Streak list
@@ -38,13 +38,13 @@ export default function MemberLeaderboard() {
   useEffect(() => {
     // Restore states
     const savedPRs = localStorage.getItem("gym_personal_records");
-    let sqVal = 320, beVal = 230, deVal = 400;
+    let sqVal = 145, beVal = 105, deVal = 180;
     if (savedPRs) {
       try {
         const parsed = JSON.parse(savedPRs);
-        sqVal = parseInt(parsed.squat, 10) || 320;
-        beVal = parseInt(parsed.bench, 10) || 230;
-        deVal = parseInt(parsed.deadlift, 10) || 400;
+        sqVal = parseInt(parsed.squat, 10) || 145;
+        beVal = parseInt(parsed.bench, 10) || 105;
+        deVal = parseInt(parsed.deadlift, 10) || 180;
       } catch (e) {}
     }
     setClaimedSquat(String(sqVal));
@@ -106,10 +106,10 @@ export default function MemberLeaderboard() {
 
   const rearrangeLifters = (totalVal: number) => {
     const list = [
-      { name: "Arjun Sharma", total: 1340, details: "Squat: 480 / Bench: 315 / Deadlift: 545", isUser: false },
-      { name: "Rohan Das", total: 1180, details: "Squat: 420 / Bench: 290 / Deadlift: 470", isUser: false },
+      { name: "Arjun Sharma", total: 610, details: "Squat: 220 / Bench: 140 / Deadlift: 250", isUser: false },
+      { name: "Rohan Das", total: 535, details: "Squat: 190 / Bench: 130 / Deadlift: 215", isUser: false },
       { name: "You (Member)", total: totalVal, details: `Squat: ${claimedSquat} / Bench: ${claimedBench} / Deadlift: ${claimedDeadlift}`, isUser: true },
-      { name: "Alexander King", total: 900, details: "Squat: 300 / Bench: 210 / Deadlift: 390", isUser: false }
+      { name: "Alexander King", total: 410, details: "Squat: 135 / Bench: 95 / Deadlift: 180", isUser: false }
     ];
 
     // Sort by total desc
@@ -118,7 +118,7 @@ export default function MemberLeaderboard() {
     const mapped = list.map((item, index) => ({
       rank: index + 1,
       name: item.name,
-      total: `${item.total} lbs`,
+      total: `${item.total} kg`,
       details: item.details,
       isUser: item.isUser
     }));
@@ -136,7 +136,7 @@ export default function MemberLeaderboard() {
     setUserTotal(total);
 
     // Save back to personal records
-    const prs = { squat: `${sq} lbs`, bench: `${be} lbs`, deadlift: `${de} lbs` };
+    const prs = { squat: `${sq} kg`, bench: `${be} kg`, deadlift: `${de} kg` };
     localStorage.setItem("gym_personal_records", JSON.stringify(prs));
 
     rearrangeLifters(total);
@@ -298,7 +298,7 @@ export default function MemberLeaderboard() {
           type="submit"
           className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1 cursor-pointer transition-transform active:scale-[0.98]"
         >
-          Claim Three-Lift Total: <strong className="font-mono text-indigo-150">{claimedSquat ? parseInt(claimedSquat, 10) + (parseInt(claimedBench, 10) || 0) + (parseInt(claimedDeadlift, 10) || 0) : 0} lbs</strong>
+          Claim Three-Lift Total: <strong className="font-mono text-indigo-150">{claimedSquat ? parseInt(claimedSquat, 10) + (parseInt(claimedBench, 10) || 0) + (parseInt(claimedDeadlift, 10) || 0) : 0} kg</strong>
         </button>
 
       </form>

@@ -270,7 +270,7 @@ export default function PremiumLab({ userProfile, attendanceLogsCount, onBackToD
   }
 
   const [socialFeed, setSocialFeed] = useState<GymSocialPost[]>([
-    { id: 1, user: "Rohan Kumar", action: "Just conquered a heavy deadlift set (365 lbs x 3 reps) on physical logs!", claps: 12, cheered: false },
+    { id: 1, user: "Rohan Kumar", action: "Just conquered a heavy deadlift set (165 kg x 3 reps) on physical logs!", claps: 12, cheered: false },
     { id: 2, user: "Jessica Miller", action: "Completed an immersive 45-minute Yoga sunrise tutorial with Coach Selene!", claps: 8, cheered: false },
     { id: 3, user: "Arjun Bennett", action: "Scanned the gym entrance gate! Checking in for raw hypertrophy legs week.", claps: 4, cheered: false }
   ]);
@@ -617,7 +617,7 @@ export default function PremiumLab({ userProfile, attendanceLogsCount, onBackToD
                 <div className="grid grid-cols-2 gap-3">
                   {/* Weight log metric */}
                   <div className="space-y-1.5">
-                    <label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Current Weight (lbs)</label>
+                    <label className="text-[9px] text-slate-400 uppercase font-bold tracking-wider">Current Weight (kg)</label>
                     <input 
                       type="number"
                       value={weightInput}

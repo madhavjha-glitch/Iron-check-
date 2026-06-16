@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import jsQR from "jsqr";
 import { 
   Dumbbell, Home, Calendar, QrCode, Bell, LayoutDashboard, ChevronRight,
   TrendingUp, Settings, Trash2, Award, Zap, Flame, Sparkles, LogOut,
@@ -50,12 +51,127 @@ export default function CustomerPanel({
   const [gatewaySuccessMsg, setGatewaySuccessMsg] = useState("");
   const [gatewayErrorMsg, setGatewayErrorMsg] = useState("");
   const [scanScenario, setScanScenario] = useState<"valid" | "expired" | "inactive" | "no_payment" | "invalid_format" | "wrong_type" | "gym_mismatch" | "duplicate">("valid");
-  const [useGateWebcam, setUseGateWebcam] = useState(false);
-  const gateVideoRef = React.useRef<HTMLVideoElement>(null);
+  const [useGateWebcam, setUseGateWebcam] = useState(true);
+  const [buzzerStyle, setBuzzerStyle] = useState<"cyber" | "sweeper" | "click" | "silent">("cyber");
+  const [virtualPassToHold, setVirtualPassToHold] = useState<string | null>(null);
+  const virtualPassToHoldRef = useRef<string | null>(null);
+  virtualPassToHoldRef.current = virtualPassToHold;
+  const gateVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Webcam streamer for QR gate scanner
+  // Optical biometric camera decrypter logic
+  const handleRealQrScan = async (scannedQRData: string) => {
+    // Return early if not ready to scan
+    if (gatewayStatus === "scanning" || gatewayStatus === "success") return;
+
+    if (gymGate?.lockdownMode) {
+      playVerifySound(false);
+      setGatewayErrorMsg("🚨 FACILITIES LOCKDOWN ACTIVE: INGRESS DENIED BY DIRECTION PROTOCOL-1.");
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(userProfile.uid, userProfile.name, "refused");
+      return;
+    }
+
+    setGatewayStatus("scanning");
+    setGatewayErrorMsg("");
+    setGatewaySuccessMsg("");
+
+    let memberId = userProfile.uid;
+    if (scanScenario === "expired") {
+      memberId = "customer_expired";
+    } else if (scanScenario === "inactive") {
+      memberId = "customer_inactive";
+    } else if (scanScenario === "no_payment") {
+      memberId = "customer_no_payment";
+    }
+
+    const gymId = "gym_hq_1";
+
+    try {
+      const response = await fetch("/api/qr/scan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          scannedQRData: scannedQRData.trim(),
+          memberId: memberId,
+          gymId: gymId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        // play failed buzzer/beep sound
+        try {
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          const audioCtx = new AudioCtx();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.frequency.setValueAtTime(150, audioCtx.currentTime); // Low buzz
+          osc.type = "sawtooth";
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        } catch (e) {}
+
+        const errorCode = result.code;
+        let errMsg = result.error || "Access Denied";
+
+        const scenarioMessages: { [key: string]: string } = {
+          'EMPTY_QR_DATA': '❌ QR code is empty. Scan again.',
+          'INVALID_QR_FORMAT': '❌ Invalid QR code format. Check QR code.',
+          'WRONG_QR_TYPE': '❌ This is not a gym QR code.',
+          'GYM_MISMATCH': '❌ This QR is for a different gym.',
+          'MEMBER_NOT_FOUND': '❌ Member not found. Contact admin.',
+          'INACTIVE_MEMBERSHIP': '❌ Membership is inactive.',
+          'MEMBERSHIP_EXPIRED': `❌ Membership expired on ${result.expiryDate ? new Date(result.expiryDate).toLocaleDateString() : 'the past date'}.`,
+          'NO_PAYMENT': '❌ No valid payment found.',
+          'ALREADY_CHECKED_IN': `❌ Already checked in.`,
+        };
+
+        if (errorCode && scenarioMessages[errorCode]) {
+          errMsg = scenarioMessages[errorCode];
+        }
+
+        setGatewayErrorMsg(errMsg);
+        setGatewayStatus("error");
+        await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+        return;
+      }
+
+      playVerifySound();
+
+      if (result.message && (result.message.includes("out") || result.message.includes("Checked out") || result.attendance?.checkOutTime)) {
+        await logDailyCheckOut(memberId);
+        setGatewaySuccessMsg(`ACCESS CONFIRMED. Turnstile Gate unlocked! Checked out successfully. Goodbye!`);
+      } else {
+        try {
+          await logDailyCheckIn(memberId, userProfile.name);
+        } catch (e) {
+          console.warn("Already synchronized standard checked-in record locally.");
+        }
+        setGatewaySuccessMsg(`ACCESS CONFIRMED. Turnstile Gate unlocked! Welcome, ${userProfile.name}!`);
+      }
+
+      setGatewayStatus("success");
+      await triggerGateHandshakeRecord(memberId, result.attendance?.memberName || userProfile.name, "granted");
+
+    } catch (err: any) {
+      console.error("Scanning error:", err);
+      setGatewayErrorMsg(err.message || "Failed communicating with scan API.");
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+    }
+  };
+
+  // Continuous Camera Stream Tracker & jsQR frame analyzer
   useEffect(() => {
     let activeStream: MediaStream | null = null;
+    let activeInterval: any = null;
+
     if (showQrSimulator && useGateWebcam) {
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
         .then(stream => {
@@ -63,14 +179,52 @@ export default function CustomerPanel({
           if (gateVideoRef.current) {
             gateVideoRef.current.srcObject = stream;
           }
+
+          // Offscreen drawing canvas
+          const canvas = document.createElement("canvas");
+
+          activeInterval = setInterval(() => {
+            // Prevent camera processing if already resolving or successful!
+            if (showQrSimulator) {
+              if (virtualPassToHoldRef.current) {
+                const data = virtualPassToHoldRef.current;
+                setVirtualPassToHold(null); // Clear item
+                handleRealQrScan(data);
+                return;
+              }
+
+              const video = gateVideoRef.current;
+              if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  canvas.width = video.videoWidth || 320;
+                  canvas.height = video.videoHeight || 240;
+                  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                  
+                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                  const parsedCode = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert"
+                  });
+                  
+                  if (parsedCode && parsedCode.data && parsedCode.data.trim()) {
+                    handleRealQrScan(parsedCode.data);
+                  }
+                }
+              }
+            }
+          }, 450);
         })
         .catch(err => {
           console.warn("Failed loading scanner camera:", err);
         });
     }
+
     return () => {
       if (activeStream) {
         activeStream.getTracks().forEach(track => track.stop());
+      }
+      if (activeInterval) {
+        clearInterval(activeInterval);
       }
     };
   }, [showQrSimulator, useGateWebcam]);
@@ -134,18 +288,55 @@ export default function CustomerPanel({
   };
 
   // Play buzzer/chime when member scans the Gate QR successfully
-  const playVerifySound = () => {
+  const playVerifySound = (isSuccess = true) => {
+    if (buzzerStyle === "silent") return;
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       const audioCtx = new AudioCtx();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.frequency.value = 880; // High-pitch access granted chime
-      gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.15);
+      
+      if (!isSuccess) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(70, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+        return;
+      }
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (buzzerStyle === "cyber") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else if (buzzerStyle === "sweeper") {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } else if (buzzerStyle === "click") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+      }
     } catch (e) {
       console.warn("Audio verify blocked by policy:", e);
     }
@@ -174,173 +365,13 @@ export default function CustomerPanel({
     }
   };
 
-  // Gateway check-in handshakes via Access QR Simulation
-  const handleScanGateSimulation = async () => {
-    setGatewayStatus("scanning");
-    setGatewayErrorMsg("");
-    setGatewaySuccessMsg("");
-
-    // Prepare inputs based on selected scenario
-    let memberId = userProfile.uid;
-    let gymId = "gym_hq_1";
-    let dataPayload = "";
-
-    const standardQrObj = {
-      gymId: "gym_hq_1",
-      gymName: "Zymnix Gym",
-      type: "GYM_ENTRANCE",
-      createdAt: new Date().toISOString(),
-      version: "1.0"
-    };
-
-    switch (scanScenario) {
-      case "valid":
-        memberId = userProfile.uid;
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify(standardQrObj);
-        break;
-      case "expired":
-        memberId = "customer_expired";
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify(standardQrObj);
-        break;
-      case "inactive":
-        memberId = "customer_inactive";
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify(standardQrObj);
-        break;
-      case "no_payment":
-        memberId = "customer_no_payment";
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify(standardQrObj);
-        break;
-      case "invalid_format":
-        memberId = userProfile.uid;
-        gymId = "gym_hq_1";
-        dataPayload = "PLAIN TEXT NOT JSON MATRIX";
-        break;
-      case "wrong_type":
-        memberId = userProfile.uid;
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify({
-          gymId: "gym_hq_1",
-          type: "OUTDOOR_SWIMMING_POOL",
-          version: "1.0"
-        });
-        break;
-      case "gym_mismatch":
-        memberId = userProfile.uid;
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify({
-          gymId: "mismatched_beach_muscle_2",
-          gymName: "Beach Muscle Gym",
-          type: "GYM_ENTRANCE",
-          createdAt: new Date().toISOString(),
-          version: "1.0"
-        });
-        break;
-      case "duplicate":
-        memberId = userProfile.uid;
-        gymId = "gym_hq_1";
-        dataPayload = JSON.stringify(standardQrObj);
-        break;
-    }
-
-    // Delay simulation to feel like actual physical camera hardware scans
-    setTimeout(async () => {
-      try {
-        const response = await fetch("/api/qr/scan", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            scannedQRData: dataPayload.trim(),
-            memberId: memberId,
-            gymId: gymId
-          })
-        });
-
-        const result = await response.json();
-
-        if (!result.success) {
-          // Play failed buzzer/chime sound
-          try {
-            const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-            const audioCtx = new AudioCtx();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime); // Low buzz
-            osc.type = "sawtooth";
-            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.3);
-          } catch (e) {}
-
-          const errorCode = result.code;
-          let errMsg = result.error || "Access Denied";
-
-          const scenarioMessages: { [key: string]: string } = {
-            'EMPTY_QR_DATA': '❌ QR code is empty. Scan again.',
-            'INVALID_QR_FORMAT': '❌ Invalid QR code format. Check QR code.',
-            'WRONG_QR_TYPE': '❌ This is not a gym QR code.',
-            'GYM_MISMATCH': '❌ This QR is for a different gym.',
-            'MEMBER_NOT_FOUND': '❌ Member not found. Contact admin.',
-            'INACTIVE_MEMBERSHIP': '❌ Membership is inactive.',
-            'MEMBERSHIP_EXPIRED': `❌ Membership expired on ${result.expiryDate ? new Date(result.expiryDate).toLocaleDateString() : 'the past date'}.`,
-            'NO_PAYMENT': '❌ No valid payment found.',
-            'ALREADY_CHECKED_IN': `❌ Already checked in ${result.data?.timeInGymMinutes || result.data?.duration || 0} minutes ago.`,
-            'INVALID_QR_VERSION': '❌ QR code version invalid.'
-          };
-
-          if (errorCode && scenarioMessages[errorCode]) {
-            errMsg = scenarioMessages[errorCode];
-          }
-
-          setGatewayErrorMsg(errMsg);
-          setGatewayStatus("error");
-          await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
-          return;
-        }
-
-        // Success vibration/beep, solenoid unlocked!
-        playVerifySound();
-        const todayStr = new Date().toISOString().split("T")[0];
-
-        if (result.message && (result.message.includes("out") || result.message.includes("Checked out") || result.attendance?.checkOutTime)) {
-          // Checkout
-          await logDailyCheckOut(memberId);
-          setGatewaySuccessMsg(`ACCESS CONFIRMED. Turnstile Gate unlocked! Checked out successfully. Goodbye, ${result.attendance ? result.attendance.memberName || userProfile.name : userProfile.name}!`);
-        } else {
-          // Checkin
-          try {
-            await logDailyCheckIn(memberId, userProfile.name);
-          } catch (e) {
-            console.warn("Already synchronized standard checked-in record locally.");
-          }
-          setGatewaySuccessMsg(`ACCESS CONFIRMED. Turnstile Gate unlocked! Welcome, ${result.attendance ? result.attendance.memberName || userProfile.name : userProfile.name}!`);
-        }
-
-        setGatewayStatus("success");
-        await triggerGateHandshakeRecord(memberId, result.attendance?.memberName || userProfile.name, "granted");
-
-      } catch (err: any) {
-        console.error("Scanning error:", err);
-        setGatewayErrorMsg(err.message || "Failed communicating with scan API.");
-        setGatewayStatus("error");
-        await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
-      }
-    }, 1200);
-  };
-
   const handleCloseGateSimulator = () => {
     setShowQrSimulator(false);
     setGatewayStatus("idle");
     setGatewaySuccessMsg("");
     setGatewayErrorMsg("");
-    setUseGateWebcam(false);
+    setUseGateWebcam(true);
+    setVirtualPassToHold(null);
   };
 
   // Avatar generator logic
@@ -741,6 +772,61 @@ export default function CustomerPanel({
                     <span className="text-[8px] font-mono px-1.5 py-0.5 bg-slate-900 rounded uppercase text-slate-400 border border-white/5">DOUBLE</span>
                   </button>
                 </div>
+
+                {/* HOLD TICKET TO LENS INTERACTIVE DRIVER */}
+                <div className="pt-2 border-t border-white/5 space-y-1.5">
+                  <button
+                    onClick={() => {
+                      const standardQrObj = {
+                        gymId: "gym_hq_1",
+                        gymName: "Zymnix Gym",
+                        type: "GYM_ENTRANCE",
+                        createdAt: new Date().toISOString(),
+                        version: "1.0"
+                      };
+
+                      let dataPayload = "";
+                      switch (scanScenario) {
+                        case "valid":
+                        case "expired":
+                        case "inactive":
+                        case "no_payment":
+                        case "duplicate":
+                          dataPayload = JSON.stringify(standardQrObj);
+                          break;
+                        case "invalid_format":
+                          dataPayload = "PLAIN TEXT NOT JSON MATRIX";
+                          break;
+                        case "wrong_type":
+                          dataPayload = JSON.stringify({
+                            gymId: "gym_hq_1",
+                            type: "OUTDOOR_SWIMMING_POOL",
+                            version: "1.0"
+                          });
+                          break;
+                        case "gym_mismatch":
+                          dataPayload = JSON.stringify({
+                            gymId: "mismatched_beach_muscle_2",
+                            gymName: "Beach Muscle Gym",
+                            type: "GYM_ENTRANCE",
+                            createdAt: new Date().toISOString(),
+                            version: "1.0"
+                          });
+                          break;
+                      }
+
+                      // Load the pass to hold up to the virtual camera sensor
+                      setGatewayStatus("idle");
+                      setVirtualPassToHold(dataPayload);
+                    }}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black uppercase rounded-xl shadow-lg flex items-center justify-center gap-1.5 active:scale-97 transition-all cursor-pointer border border-indigo-400/20 font-sans tracking-wide"
+                  >
+                    <span>Hold Selected Pass to Lens 🤳</span>
+                  </button>
+                  <span className="text-[9.5px] text-slate-400 block text-center leading-normal italic">
+                    This holds the selected pass card directly in front of the lens for real-time optical decoding.
+                  </span>
+                </div>
               </div>
 
               {/* Physical Gate Live Feedback HUD */}
@@ -837,7 +923,17 @@ export default function CustomerPanel({
                   <div className="absolute top-[-5px] left-[-5px] w-8 h-8 border-t-[4px] border-l-[4px] border-[#FF6B35] rounded-tl-xl" />
                   <div className="absolute top-[-5px] right-[-5px] w-8 h-8 border-t-[4px] border-r-[4px] border-[#FF6B35] rounded-tr-xl" />
                   <div className="absolute bottom-[-5px] left-[-5px] w-8 h-8 border-b-[4px] border-l-[4px] border-[#FF6B35] rounded-bl-xl" />
-                  <div className="absolute bottom-[[-5px] right-[-5px] w-8 h-8 border-b-[4px] border-r-[4px] border-[#FF6B35] rounded-br-xl" />
+                  <div className="absolute bottom-[-5px] right-[-5px] w-8 h-8 border-b-[4px] border-r-[4px] border-[#FF6B35] rounded-br-xl" />
+
+                  {/* Virtual pass scanning overlay */}
+                  {virtualPassToHold && (
+                    <div className="absolute inset-2 bg-slate-950/90 rounded-xl flex flex-col items-center justify-center p-3 animate-pulse border border-[#FF6B35]/50 z-30">
+                      <QrCode className="w-10 h-10 text-[#FF6B35] animate-spin" />
+                      <span className="text-[10px] text-[#ff804e] mt-2 font-black tracking-widest uppercase font-mono block">
+                        Reading Pass Token...
+                      </span>
+                    </div>
+                  )}
 
                   {/* Laser bar animation */}
                   {gatewayStatus === "scanning" && (
@@ -863,6 +959,22 @@ export default function CustomerPanel({
                       </span>
                     )}
                   </div>
+
+                  {/* 🚨 EMERGENCY PHYSICAL PHONE BANNER */}
+                  {gymGate?.lockdownMode && (
+                    <div className="absolute inset-0 bg-rose-950/95 z-40 flex flex-col items-center justify-center p-4 text-center space-y-3 rounded-xl border border-rose-500/50">
+                      <div className="w-11 h-11 bg-rose-900/40 rounded-full border border-rose-500 flex items-center justify-center animate-bounce shadow-lg shadow-red-500/20">
+                        <X className="w-6 h-6 text-rose-500" />
+                      </div>
+                      <div className="space-y-1">
+                        <h4 className="text-[11px] font-black text-rose-500 uppercase tracking-widest font-mono">FACILITY LOCKDOWN</h4>
+                        <span className="text-[8px] text-rose-400 block tracking-widest uppercase font-bold font-mono">CODE PROTOCOL-1</span>
+                        <p className="text-[9.5px] text-slate-300 leading-normal font-sans">
+                          Ingress turnstiles locked remotely. Walk-in restricted. Contact front desk staff.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* FOOTER CONTROLS OVERLAY */}
@@ -872,20 +984,70 @@ export default function CustomerPanel({
                   </p>
 
                   <div className="flex flex-col gap-2.5 max-w-[210px] mx-auto">
-                    {gatewayStatus === "idle" && (
-                      <button
-                        onClick={handleScanGateSimulation}
-                        className="w-full py-2.5 bg-[#FF6B35] hover:bg-[#ff8652] text-white text-xs font-extrabold uppercase rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer border border-[#FF6B35]/20 font-sans tracking-wide"
-                      >
-                        Scan Camera QR Code
-                      </button>
-                    )}
+                    {/* Beep Style Selection Pills */}
+                    <div className="space-y-1 text-left bg-black/50 p-2.5 rounded-xl border border-white/5">
+                      <span className="text-[8px] font-black uppercase text-slate-400 block tracking-wider font-mono">Buzzer Beep Sound Setting</span>
+                      <div className="grid grid-cols-4 gap-1 mt-1 shrink-0">
+                        {(["cyber", "sweeper", "click", "silent"] as const).map((style) => (
+                          <button
+                            key={style}
+                            onClick={() => {
+                              setBuzzerStyle(style);
+                              // Trigger brief sound preview
+                              setTimeout(() => {
+                                try {
+                                  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+                                  const audioCtx = new AudioCtx();
+                                  const osc = audioCtx.createOscillator();
+                                  const gain = audioCtx.createGain();
+                                  osc.connect(gain);
+                                  gain.connect(audioCtx.destination);
+                                  if (style === "cyber") {
+                                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                                    gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                                    osc.start();
+                                    osc.stop(audioCtx.currentTime + 0.1);
+                                  } else if (style === "sweeper") {
+                                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.15);
+                                    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                                    osc.start();
+                                    osc.stop(audioCtx.currentTime + 0.15);
+                                  } else if (style === "click") {
+                                    osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+                                    gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                                    osc.start();
+                                    osc.stop(audioCtx.currentTime + 0.04);
+                                  }
+                                } catch (e) {}
+                              }, 50);
+                            }}
+                            className={`px-1 py-1 rounded text-[8px] font-black uppercase leading-tight tracking-tight transition-all font-mono border cursor-pointer ${
+                              buzzerStyle === style
+                                ? "bg-indigo-600 text-white border-indigo-400 font-extrabold"
+                                : "bg-slate-900 text-slate-400 border-white/5 hover:bg-slate-800"
+                            }`}
+                          >
+                            {style === "sweeper" ? "sweep" : style}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 max-w-[200px] mx-auto leading-normal bg-black/40 px-3 py-2 rounded-xl border border-white/5 font-medium">
+                      Camera feed is armed. Present a gym QR poster code to the camera, or click "Hold Selected Pass to Lens" on the left board.
+                    </div>
 
                     {/* Camera Source Selector Button */}
                     <button
                       type="button"
+                      disabled={!!gymGate?.lockdownMode}
                       onClick={() => setUseGateWebcam(v => !v)}
-                      className="w-full py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-[9px] font-bold uppercase rounded-lg border border-white/5 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      className={`w-full py-1.5 text-[9px] font-bold uppercase rounded-lg border transition-all flex items-center justify-center gap-1.5 font-mono ${
+                        gymGate?.lockdownMode
+                          ? "bg-slate-900 text-slate-600 border-slate-950 cursor-not-allowed"
+                          : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-white/5 cursor-pointer"
+                      }`}
                     >
                       <Camera className="w-3.5 h-3.5 text-[#FF6B35]" />
                       {useGateWebcam ? "Stop Webcam Capture" : "Use Real Laptop Camera"}

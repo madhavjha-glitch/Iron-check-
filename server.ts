@@ -89,7 +89,7 @@ app.post("/api/gemini/workout-recommendations", async (req, res) => {
 Generate a custom fitness workout routine matching these biometric parameters:
 - Core Goal: ${goal}
 - Experience Level: ${experience}
-- Athlete Weight: ${weight || "175"} lbs
+- Athlete Weight: ${weight || "75"} kg
 - Available Liftsplits: ${daysPerWeek || "3"} days per week
 - Physical Constraints/Injuries: ${constraints || "None specified"}
 
@@ -298,6 +298,7 @@ interface GymGateDb {
     status: string;
   }[];
   lastUpdated?: Date;
+  lockdownMode?: boolean;
 }
 
 interface MemberDb {
@@ -457,6 +458,16 @@ app.post("/api/qr/generate", async (req, res) => {
 app.post("/api/qr/scan", validateQRRequest, async (req, res) => {
   try {
     const { scannedQRData, memberId, gymId } = req.body;
+
+    // 🚨 EMERGENCY LOCKDOWN PROTOCOL CHECK
+    const currentGateway = dbGymGates.get(gymId || "gym_hq_1");
+    if (currentGateway && currentGateway.lockdownMode) {
+      return res.status(403).json({
+        success: false,
+        error: "🚨 EMERGENCY GATE LOCKDOWN ACTIVE / आपातकालीन तालाबंदी\nगेट को सुरक्षा कारणों से ब्लॉक किया गया है (Access is restricted by admin lockdown directive)",
+        code: "EMERGENCY_LOCKDOWN"
+      });
+    }
 
     // ❌ VALIDATION 1: QR data exists and valid JSON
     let qrData: any;
@@ -685,8 +696,33 @@ app.get("/api/qr/status/:gymId", async (req, res) => {
       qrActive: !!gate?.qrCode,
       gateStatus: gate?.gateStatus || "locked",
       lastUpdated: gate?.lastUpdated || null,
-      qrImage: gate?.qrImage || null
+      qrImage: gate?.qrImage || null,
+      lockdownMode: !!gate?.lockdownMode
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST Endpoint - Set gate lockdown mode manually
+app.post("/api/gym/gate/lockdown", async (req, res) => {
+  try {
+    const { gymId, lockdown } = req.body;
+    const targetGymId = gymId || "gym_hq_1";
+    const gate = dbGymGates.get(targetGymId) || {
+      gymId: targetGymId,
+      qrCode: "iron_check_front_desk_checkin",
+      gateStatus: "locked",
+      accessLog: [],
+      lastUpdated: new Date()
+    } as GymGateDb;
+    gate.lockdownMode = !!lockdown;
+    if (lockdown) {
+      gate.gateStatus = "locked";
+    }
+    gate.lastUpdated = new Date();
+    dbGymGates.set(targetGymId, gate);
+    res.json({ success: true, lockdownMode: gate.lockdownMode });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

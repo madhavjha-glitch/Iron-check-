@@ -84,8 +84,8 @@ export default function MemberProfileComponent({ userProfile, onLogout }: Member
 
   // Invoices history lists
   const [invoices, setInvoices] = useState<Array<any>>([
-    { id: "INV_2026_004", date: "June 01, 2026", amount: "$45.00", status: "Completed", plan: "Monthly Silver Basic" },
-    { id: "INV_2026_001", date: "May 01, 2026", amount: "$45.00", status: "Completed", plan: "Monthly Silver Basic" }
+    { id: "INV_2026_004", date: "June 01, 2026", amount: "₹2,499.00", status: "Completed", plan: "Monthly SILVER" },
+    { id: "INV_2026_001", date: "May 01, 2026", amount: "₹2,499.00", status: "Completed", plan: "Monthly SILVER" }
   ]);
 
   useEffect(() => {
@@ -121,9 +121,9 @@ export default function MemberProfileComponent({ userProfile, onLogout }: Member
   };
 
   const calculateRenewCost = () => {
-    if (activeTierSelected === "silver") return billingCycle === "monthly" ? 45 : 399;
-    if (activeTierSelected === "gold") return billingCycle === "monthly" ? 75 : 699;
-    return billingCycle === "monthly" ? 110 : 999;
+    if (activeTierSelected === "silver") return billingCycle === "monthly" ? 2499 : 19999;
+    if (activeTierSelected === "gold") return billingCycle === "monthly" ? 3999 : 34999;
+    return billingCycle === "monthly" ? 5999 : 49999;
   };
 
   const handleSimulatePaymentProcess = (e: React.FormEvent) => {
@@ -136,7 +136,7 @@ export default function MemberProfileComponent({ userProfile, onLogout }: Member
     setPayStatus("processing");
     setTimeout(() => {
       // Create new invoice receipt
-      const amt = `$${calculateRenewCost()}.00`;
+      const amt = `₹${calculateRenewCost().toLocaleString("en-IN")}.00`;
       const planName = `${billingCycle === "monthly" ? "Monthly" : "Yearly"} ${activeTierSelected.toUpperCase()}`;
       const newInv = {
         id: "INV_" + Date.now().toString().slice(-6),
@@ -273,7 +273,7 @@ Gateway security handshake verified.`;
           </div>
 
           <div className="space-y-1">
-            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Current Weight (lbs)</label>
+            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Current Weight (kg)</label>
             <input
               type="number"
               step="0.1"
@@ -353,7 +353,7 @@ Gateway security handshake verified.`;
             <p className="text-[10px] text-slate-500">Auto renew authorized</p>
           </div>
           <span className="font-mono text-base font-black text-white">
-            ${calculateRenewCost()}.00
+            ₹{calculateRenewCost().toLocaleString("en-IN")}.00
           </span>
         </div>
 
@@ -535,7 +535,7 @@ Gateway security handshake verified.`;
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Select billing total payment</label>
                 <div className="bg-slate-950 border border-white/5 py-2 px-3 rounded-xl text-center">
                   <span className="text-xs text-slate-400">Renewing {activeTierSelected.toUpperCase()} Pass for:</span>
-                  <span className="font-mono text-sm font-black text-white block mt-0.5">${calculateRenewCost()}.00</span>
+                  <span className="font-mono text-sm font-black text-white block mt-0.5">₹{calculateRenewCost().toLocaleString("en-IN")}.00</span>
                 </div>
               </div>
 

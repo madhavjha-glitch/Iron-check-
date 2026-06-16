@@ -33,7 +33,7 @@ export default function MemberDashboard({
     caloriesBurned: 450,
     waterCups: 3,
     mealsLogged: 1,
-    weightLbs: 179.4
+    weightKg: 75.0
   });
 
   const [occupancy, setOccupancy] = useState<{
@@ -128,10 +128,11 @@ export default function MemberDashboard({
     const savedWater = localStorage.getItem("gym_water_today");
     const savedMeals = localStorage.getItem("gym_meals_today");
     const savedWeights = localStorage.getItem("gym_weights_history");
+    const savedWeightLatest = localStorage.getItem("gym_weight_latest");
     
     let cups = 3;
     let meals = 1;
-    let wt = 179.4;
+    let wt = 75.0;
 
     if (savedWater) cups = parseInt(savedWater, 10);
     if (savedMeals) {
@@ -140,10 +141,16 @@ export default function MemberDashboard({
         meals = parsed.filter((m: any) => m.logged).length;
       } catch (e) {}
     }
-    if (savedWeights) {
+    if (savedWeightLatest) {
+      wt = parseFloat(savedWeightLatest);
+    } else if (savedWeights) {
       try {
         const parsed = JSON.parse(savedWeights);
-        if (parsed.length > 0) wt = parsed[parsed.length - 1].weight;
+        if (parsed.length > 0) {
+          const rawWt = parsed[parsed.length - 1].weight;
+          // If rawWt is high (e.g. > 130), assume it's in lbs and convert to kg
+          wt = rawWt > 130 ? Math.round((rawWt / 2.20462) * 10) / 10 : rawWt;
+        }
       } catch (e) {}
     }
 
@@ -151,7 +158,7 @@ export default function MemberDashboard({
       caloriesBurned: log ? 550 : 0,
       waterCups: cups,
       mealsLogged: meals,
-      weightLbs: wt
+      weightKg: wt
     });
   }, [userProfile.feeDueDate, attendanceLogs]);
 
@@ -434,7 +441,7 @@ export default function MemberDashboard({
           <div className="mt-4">
             <p className="text-[10px] text-slate-400">Active Record</p>
             <h4 className="font-mono text-base font-black text-white mt-1">
-              {quickStats.weightLbs} <span className="text-xs text-slate-500">lbs</span>
+              {quickStats.weightKg} <span className="text-xs text-slate-500">kg</span>
             </h4>
             <span className="text-[9px] text-slate-500 mt-0.5 block group-hover:text-indigo-400 transition-colors">
               View target timeline →

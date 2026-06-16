@@ -21,9 +21,9 @@ export default function MemberWorkout({ routines = [] }: MemberWorkoutProps) {
 
   // Heavy Lift PRs State
   const [personalRecords, setPersonalRecords] = useState({
-    squat: "315 lbs",
-    bench: "225 lbs",
-    deadlift: "405 lbs"
+    squat: "145 kg",
+    bench: "105 kg",
+    deadlift: "180 kg"
   });
   const [showPrModal, setShowPrModal] = useState(false);
   const [tempPR, setTempPR] = useState({ squat: "", bench: "", deadlift: "" });
@@ -109,7 +109,7 @@ export default function MemberWorkout({ routines = [] }: MemberWorkoutProps) {
       currentProgram.exercises.forEach((ex, idx) => {
         logsInit[idx] = Array.from({ length: ex.sets }).map(() => ({
           reps: ex.reps.split(" ")[0] || "10",
-          weight: "135",
+          weight: "60",
           completed: false
         }));
       });
@@ -330,7 +330,7 @@ export default function MemberWorkout({ routines = [] }: MemberWorkoutProps) {
                   <div className="grid grid-cols-12 gap-2 text-[9px] font-black uppercase text-slate-500 tracking-wider py-2">
                     <div className="col-span-3 text-left">Set #</div>
                     <div className="col-span-4 text-center">Reps Completed</div>
-                    <div className="col-span-3 text-center">Weight (lbs)</div>
+                    <div className="col-span-3 text-center">Weight (kg)</div>
                     <div className="col-span-2 text-right">Checked</div>
                   </div>
 

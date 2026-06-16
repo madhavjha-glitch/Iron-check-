@@ -66,4 +66,5 @@ export interface GymGateState {
   openDuration: number; // seconds
   accessLog: GymGateLog[];
   lastUpdated: string; // ISO format
+  lockdownMode?: boolean;
 }

@@ -84,7 +84,7 @@ export default function MobileFrame({
         }`}
         id="app-responsive-workspace"
       >
-        <div className="flex-1 flex flex-col relative w-full h-full">
+        <div className="flex-1 flex flex-col relative w-full h-full overflow-x-hidden">
           {children}
         </div>
       </main>

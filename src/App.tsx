@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dumbbell } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import MobileFrame from "./components/MobileFrame";
 import AuthScreen from "./components/AuthScreen";
 import AdminPanel from "./components/AdminPanel";
@@ -149,29 +150,66 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
       >
-        {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-white min-h-[400px]" id="app-loading">
-            <div className="relative">
-              <Dumbbell className="w-12 h-12 text-amber-500 animate-bounce" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
-            </div>
-            <span className="text-sm font-semibold tracking-wide text-slate-300 mt-6 block font-mono">
-              ★ SYNCHRONIZING SECURE GATEWAY... ★
-            </span>
-          </div>
-        ) : !currentUser ? (
-          <AuthScreen onLogin={handleLogin} isLoading={loading} />
-        ) : currentUser.role === "admin" ? (
-          <AdminPanel adminEmail={currentUser.email} onLogout={handleLogout} />
-        ) : (
-          currentUser.profile && (
-            <CustomerPanel
-              userProfile={currentUser.profile}
-              attendanceLogs={attendanceLogs}
-              onLogout={handleLogout}
-            />
-          )
-        )}
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              key="loading-gateway"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="flex-1 flex flex-col items-center justify-center p-6 text-white min-h-[400px]"
+              id="app-loading"
+            >
+              <div className="relative">
+                <Dumbbell className="w-12 h-12 text-amber-500 animate-bounce" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin"></div>
+              </div>
+              <span className="text-sm font-semibold tracking-wide text-slate-300 mt-6 block font-mono text-center">
+                ★ SYNCHRONIZING SECURE GATEWAY... ★
+              </span>
+            </motion.div>
+          ) : !currentUser ? (
+            <motion.div
+              key="auth-gateway"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="w-full h-full flex flex-col flex-1"
+            >
+              <AuthScreen onLogin={handleLogin} isLoading={loading} />
+            </motion.div>
+          ) : currentUser.role === "admin" ? (
+            <motion.div
+              key="admin-gateway"
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -40, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 24 }}
+              className="w-full h-full flex flex-col flex-1"
+            >
+              <AdminPanel adminEmail={currentUser.email} onLogout={handleLogout} />
+            </motion.div>
+          ) : (
+            currentUser.profile && (
+              <motion.div
+                key="customer-gateway"
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -40, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 220, damping: 24 }}
+                className="w-full h-full flex flex-col flex-1"
+              >
+                <CustomerPanel
+                  userProfile={currentUser.profile}
+                  attendanceLogs={attendanceLogs}
+                  onLogout={handleLogout}
+                />
+              </motion.div>
+            )
+          )}
+        </AnimatePresence>
       </MobileFrame>
     </>
   );

@@ -1449,6 +1449,7 @@ export const subscribeToGymGate = (callback: (gate: GymGateState) => void): Unsu
               status: l.status,
             })),
             lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : data.lastUpdated || "",
+            lockdownMode: !!data.lockdownMode,
           });
         } else {
           const initGate: GymGateState = {
@@ -1457,7 +1458,8 @@ export const subscribeToGymGate = (callback: (gate: GymGateState) => void): Unsu
             gateStatus: "locked",
             openDuration: 5,
             accessLog: [],
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            lockdownMode: false,
           };
           setDoc(gateDocRef, initGate);
           callback(initGate);
@@ -1480,7 +1482,8 @@ export const subscribeToGymGate = (callback: (gate: GymGateState) => void): Unsu
         gateStatus: "locked",
         openDuration: 5,
         accessLog: [],
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        lockdownMode: false,
       };
     }
     callback(current);
@@ -1593,6 +1596,41 @@ export const lockGateManual = async (): Promise<void> => {
         lastUpdated: new Date().toISOString()
       };
     }
+    currentGate.gateStatus = "locked";
+    currentGate.lastUpdated = new Date().toISOString();
+    localStorage.setItem("gym_demo_gate", JSON.stringify(currentGate));
+    triggerLocalListeners("gate");
+  }
+};
+
+export const setGateLockdownManual = async (lockdown: boolean): Promise<void> => {
+  if (isFirebaseConfigured && db) {
+    const gateDocRef = doc(db, "gym_gates", "main");
+    try {
+      await updateDoc(gateDocRef, {
+        lockdownMode: lockdown,
+        gateStatus: "locked",
+        lastUpdated: Timestamp.fromDate(new Date())
+      });
+    } catch (e) {
+      console.warn("Failed manually configuring lockdownGate status in Firebase: ", e);
+    }
+  } else {
+    const gateStr = localStorage.getItem("gym_demo_gate") || "{}";
+    let currentGate: GymGateState;
+    try {
+      currentGate = JSON.parse(gateStr);
+    } catch {
+      currentGate = {
+        gymId: "gym_hq_1",
+        qrCode: "iron_check_front_desk_checkin",
+        gateStatus: "locked",
+        openDuration: 5,
+        accessLog: [],
+        lastUpdated: new Date().toISOString()
+      };
+    }
+    currentGate.lockdownMode = lockdown;
     currentGate.gateStatus = "locked";
     currentGate.lastUpdated = new Date().toISOString();
     localStorage.setItem("gym_demo_gate", JSON.stringify(currentGate));
