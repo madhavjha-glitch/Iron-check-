@@ -92,7 +92,7 @@ export default function MemberDashboard({
         })
       });
       const result = await response.json();
-      if (result.success && result.attendance && result.attendance.checkOutTime) {
+      if (result.success && result.gateAction === "OPEN" && result.attendance && result.attendance.checkOutTime) {
         setSessionSummary({
           duration: result.attendance.duration || 45,
           checkIn: result.attendance.checkInTime,

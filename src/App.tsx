@@ -6,6 +6,7 @@ import AuthScreen from "./components/AuthScreen";
 import AdminPanel from "./components/AdminPanel";
 import CustomerPanel from "./components/CustomerPanel";
 import PremiumBackground3D from "./components/PremiumBackground3D";
+import VerifyQRDirect from "./components/VerifyQRDirect";
 import {
   isFirebaseConfigured,
   subscribeToAuthChanges,
@@ -20,6 +21,14 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUserState | null>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isVerifyQRRoute, setIsVerifyQRRoute] = useState(false);
+
+  // Detect direct QR code link scans (Google Lens target)
+  useEffect(() => {
+    if (window.location.pathname === "/verify-qr" || window.location.search.includes("verify-qr")) {
+      setIsVerifyQRRoute(true);
+    }
+  }, []);
 
   // Authenticate user & track authentication state dynamically
   useEffect(() => {
@@ -168,6 +177,24 @@ export default function App() {
               <span className="text-sm font-semibold tracking-wide text-slate-300 mt-6 block font-mono text-center">
                 ★ SYNCHRONIZING SECURE GATEWAY... ★
               </span>
+            </motion.div>
+          ) : isVerifyQRRoute ? (
+            <motion.div
+              key="verify-qr-gateway"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.25 }}
+              className="w-full h-full flex flex-col flex-1"
+            >
+              <VerifyQRDirect
+                currentUser={currentUser}
+                onLogin={handleLogin}
+                onClose={() => {
+                  window.history.pushState({}, "", "/");
+                  setIsVerifyQRRoute(false);
+                }}
+              />
             </motion.div>
           ) : !currentUser ? (
             <motion.div

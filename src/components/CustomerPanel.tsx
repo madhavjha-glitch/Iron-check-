@@ -47,6 +47,7 @@ export default function CustomerPanel({
 
   // QR Access Pass overlay states
   const [showQrSimulator, setShowQrSimulator] = useState(false);
+  const [lastScannedTime, setLastScannedTime] = useState<number | null>(null);
   const [gatewayStatus, setGatewayStatus] = useState<"idle" | "scanning" | "success" | "error">("idle");
   const [gatewaySuccessMsg, setGatewaySuccessMsg] = useState("");
   const [gatewayErrorMsg, setGatewayErrorMsg] = useState("");
@@ -62,6 +63,16 @@ export default function CustomerPanel({
   const handleRealQrScan = async (scannedQRData: string) => {
     // Return early if not ready to scan
     if (gatewayStatus === "scanning" || gatewayStatus === "success") return;
+
+    // Prevent duplicate scans within 10 seconds on frontend
+    const nowTimestamp = Date.now();
+    if (lastScannedTime && (nowTimestamp - lastScannedTime < 10000)) {
+      playVerifySound(false);
+      setGatewayErrorMsg("❌ Duplicate scan prevented. Please wait 10 seconds between scans.");
+      setGatewayStatus("error");
+      return;
+    }
+    setLastScannedTime(nowTimestamp);
 
     if (gymGate?.lockdownMode) {
       playVerifySound(false);
@@ -85,6 +96,65 @@ export default function CustomerPanel({
     }
 
     const gymId = "gym_hq_1";
+    const trimmedQR = (scannedQRData || "").trim();
+
+    // Secondary Client-Side QR Validations
+    // Step 1: Check QR exists
+    if (!trimmedQR) {
+      playVerifySound(false);
+      setGatewayErrorMsg("❌ Local Validation: QR code data is empty.");
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+      return;
+    }
+
+    // Step 2: Parse JSON
+    let parsedQR: any = null;
+    try {
+      let actualJSON = trimmedQR;
+      if (trimmedQR.startsWith("http://") || trimmedQR.startsWith("https://")) {
+        const parsedUrl = new URL(trimmedQR);
+        const queryQR = parsedUrl.searchParams.get("scannedQRData");
+        if (queryQR) {
+          actualJSON = queryQR;
+        }
+      }
+
+      if (actualJSON === "zymnix_front_desk_checkin" || actualJSON === "iron_check_front_desk_checkin") {
+        parsedQR = {
+          type: "GYM_ENTRANCE",
+          gymId: gymId,
+          version: "1.0",
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        parsedQR = JSON.parse(actualJSON);
+      }
+    } catch (e) {
+      playVerifySound(false);
+      setGatewayErrorMsg("❌ Local Validation: Invalid QR JSON format.");
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+      return;
+    }
+
+    // Step 3: Verify type = "GYM_ENTRANCE"
+    if (!parsedQR || parsedQR.type !== "GYM_ENTRANCE") {
+      playVerifySound(false);
+      setGatewayErrorMsg("❌ Local Validation: Wrong QR Type. Must be 'GYM_ENTRANCE'.");
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+      return;
+    }
+
+    // Step 4: Verify gymId matches current gym
+    if (parsedQR.gymId !== gymId) {
+      playVerifySound(false);
+      setGatewayErrorMsg(`❌ Local Validation: Gym mismatch. QR belongs to '${parsedQR.gymId}'.`);
+      setGatewayStatus("error");
+      await triggerGateHandshakeRecord(memberId, userProfile.name, "refused");
+      return;
+    }
 
     try {
       const response = await fetch("/api/qr/scan", {
@@ -93,7 +163,7 @@ export default function CustomerPanel({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          scannedQRData: scannedQRData.trim(),
+          scannedQRData: trimmedQR,
           memberId: memberId,
           gymId: gymId
         })
@@ -101,7 +171,8 @@ export default function CustomerPanel({
 
       const result = await response.json();
 
-      if (!result.success) {
+      // Check success and strict gate action gateAction === "OPEN"
+      if (!result.success || result.gateAction !== "OPEN") {
         // play failed buzzer/beep sound
         try {
           const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -118,7 +189,7 @@ export default function CustomerPanel({
         } catch (e) {}
 
         const errorCode = result.code;
-        let errMsg = result.error || "Access Denied";
+        let errMsg = result.error || "Access Denied: Gate solenoid locked.";
 
         const scenarioMessages: { [key: string]: string } = {
           'EMPTY_QR_DATA': '❌ QR code is empty. Scan again.',

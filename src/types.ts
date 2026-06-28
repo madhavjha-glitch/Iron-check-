@@ -68,3 +68,28 @@ export interface GymGateState {
   lastUpdated: string; // ISO format
   lockdownMode?: boolean;
 }
+
+// JWT CUSTOM USER AUTHENTICATION TYPES
+export interface JWTUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface JWTConversation {
+  _id: string;
+  userId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JWTMessage {
+  _id: string;
+  conversationId: string;
+  userId: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+}
+

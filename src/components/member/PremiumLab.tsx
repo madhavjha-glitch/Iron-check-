@@ -4,9 +4,10 @@ import {
   Users, Award, Eye, Heart, Check, Plus, AlertCircle, 
   Send, ExternalLink, RefreshCw, Volume2, StepForward,
   Flame, Droplet, Clock, Zap, MessageSquare, HeartHandshake,
-  Upload, Sparkle, Camera
+  Upload, Sparkle, Camera, ShieldCheck
 } from "lucide-react";
 import { MemberProfile } from "../../types";
+import SecureChatAuth from "../SecureChatAuth";
 
 interface PremiumLabProps {
   userProfile: MemberProfile;
@@ -19,6 +20,7 @@ export default function PremiumLab({ userProfile, attendanceLogsCount, onBackToD
 
   // Premium Features general list
   const premiumApps = [
+    { id: "secure-chat", title: "Secure Guard Chat", desc: "Private coach conversations isolated via JWT Auth", icon: ShieldCheck, badge: "JWT Secured", color: "from-amber-600 to-amber-500" },
     { id: "workout-ai", title: "AI Workout Architect", desc: "Custom splits based on physical parameters", icon: Dumbbell, badge: "AI Powered", color: "from-indigo-600 to-blue-500" },
     { id: "nutrition-ai", title: "AI Sports Kitchen", desc: "Automated custom calorie & macros diet layouts", icon: Utensils, badge: "Nutrition AI", color: "from-orange-500 to-amber-500" },
     { id: "video-library", title: "Video Form Studio", desc: "Instructional library of compound movements", icon: Video, badge: "Videos", color: "from-rose-500 to-pink-500" },
@@ -1578,6 +1580,15 @@ export default function PremiumLab({ userProfile, attendanceLogsCount, onBackToD
               </span>
             )}
 
+          </div>
+        )}
+
+        {/* ==========================================
+            10. SECURE GUARD CHAT (JWT + DB)
+            ========================================== */}
+        {activeSub === "secure-chat" && (
+          <div className="p-4 flex-1 flex flex-col h-full">
+            <SecureChatAuth />
           </div>
         )}
 

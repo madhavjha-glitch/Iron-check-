@@ -979,7 +979,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                   <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-indigo-500/75 rounded-br-md" />
                   
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=zymnix_front_desk_checkin&color=ffffff&bgcolor=020617"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(window.location.origin + "/verify-qr?gymId=gym_hq_1&scannedQRData=zymnix_front_desk_checkin")}&color=ffffff&bgcolor=020617`}
                     alt="Zymnix Attendance Gate QR Token"
                     className="w-32 h-32 select-none bg-slate-950 mx-auto block"
                     referrerPolicy="no-referrer"
@@ -2368,7 +2368,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                 {/* Massive QR Identifier */}
                 <div className="p-6 bg-slate-100 rounded-3xl inline-block border-2 border-dashed border-indigo-600/30">
                   <img
-                    src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=zymnix_front_desk_checkin&color=020617&bgcolor=ffffff"
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(window.location.origin + "/verify-qr?gymId=gym_hq_1&scannedQRData=zymnix_front_desk_checkin")}&color=020617&bgcolor=ffffff`}
                     alt="Zymnix Master Gate Access Code"
                     className="w-56 h-56 select-none mx-auto"
                     referrerPolicy="no-referrer"
@@ -2381,6 +2381,7 @@ export default function AdminPanel({ adminEmail, onLogout }: AdminPanelProps) {
                 <div className="space-y-3 pt-2 text-left max-w-sm mx-auto">
                   <h4 className="text-xs font-black uppercase tracking-wide text-center text-slate-950">HOW TO CHECK IN:</h4>
                   <ol className="text-xs text-slate-755 space-y-1.5 list-decimal pl-4 leading-relaxed font-semibold">
+                    <li><strong>Direct Google Lens Scan (Recommended):</strong> Simply point your phone's default camera or Google Lens at this QR code and tap the link to check in instantly!</li>
                     <li>Open your smartphone and log into the <strong>Zymnix Member App</strong>.</li>
                     <li>On the dashboard, tap the <strong>"Scan Gate QR"</strong> button.</li>
                     <li>Align your camera to scan this master Gate QR Poster.</li>

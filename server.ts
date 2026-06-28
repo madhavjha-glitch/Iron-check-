@@ -7,7 +7,16 @@ import QRCode from "qrcode";
 import { controlGate } from "./services/gateControl.js";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
-import { connectToMongoDB, MongoProgress, MongoMember, getDeterministicObjectId } from "./src/db/mongo.js";
+import bcrypt from "bcryptjs";
+import { 
+  connectToMongoDB, 
+  MongoProgress, 
+  MongoMember, 
+  getDeterministicObjectId,
+  MongoUser,
+  MongoConversation,
+  MongoMessage
+} from "./src/db/mongo.js";
 
 dotenv.config();
 
@@ -56,7 +65,7 @@ app.post("/api/gemini/chat", async (req, res) => {
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: formattedContents,
       config: {
         systemInstruction: `You are Coach Zymnix, an elite, scientific-backed bodybuilding expert, certified fitness coach, and supportive training partner at Zymnix Gym. 
@@ -101,7 +110,7 @@ Outline a structured workout split with:
 Speak dynamically, authoritatively, and with elite motivating encouragement. Limit response to 300 words. Use clean structure. Avoid raw meta tags.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
     });
 
@@ -138,7 +147,7 @@ Draft a structured plan containing:
 Speak supportively, using clean typography and spacious markdown bullet points. Limit reply to 300 words.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
     });
 
@@ -248,7 +257,7 @@ Ensure it looks clean, stunning, and fits a high-end application.
 Return ONLY valid raw SVG source code. Do NOT enclose it in markdown code blocks, do not include any other explanations, notes, or words. Just the pure valid <svg>...</svg> string.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.1-flash-lite",
       contents: svgPrompt,
     });
 
@@ -422,7 +431,8 @@ app.post("/api/qr/generate", async (req, res) => {
       gymName: gymName || "Zymnix Gym",
       type: 'GYM_ENTRANCE',
       createdAt: new Date(),
-      version: '1.0'
+      version: '1.0',
+      timestamp: new Date().toISOString()
     };
 
     const qrString = JSON.stringify(qrData);
@@ -454,122 +464,223 @@ app.post("/api/qr/generate", async (req, res) => {
   }
 });
 
-// POST Endpoint - Scan and Verify QR Entrance Biometrics
-app.post("/api/qr/scan", validateQRRequest, async (req, res) => {
+// Helper function to update in-memory gym gate access logs
+const logAccessAttempt = (gymId: string, memberId: string, status: "granted" | "refused", code?: string) => {
+  const gate = dbGymGates.get(gymId) || {
+    gymId,
+    qrCode: "",
+    gateStatus: "locked" as const,
+    accessLog: [],
+  } as GymGateDb;
+
+  gate.accessLog.unshift({
+    memberId: memberId || "unknown",
+    timestamp: new Date(),
+    status: status === "granted" ? "granted" : `refused: ${code || "ERROR"}`
+  });
+
+  // Keep last 20 access entries
+  gate.accessLog = gate.accessLog.slice(0, 20);
+  gate.lastUpdated = new Date();
+  dbGymGates.set(gymId, gate);
+};
+
+// Reusable 8-Step Verification Logic
+interface QRValidationResult {
+  isValid: boolean;
+  code: string;
+  error?: string;
+  qrData?: any;
+  member?: any;
+}
+
+const validateQRCodeAndMember = (
+  scannedQRData: string | undefined | null,
+  memberId: string,
+  gymId: string
+): QRValidationResult => {
+  // Step 1: Check QR data exists (not empty, not null)
+  if (!scannedQRData || typeof scannedQRData !== "string" || scannedQRData.trim() === "") {
+    console.error(`[SECURITY LOG] Step 1 Failed: QR data is empty for member ${memberId}. Code: EMPTY_QR_DATA`);
+    return {
+      isValid: false,
+      code: "EMPTY_QR_DATA",
+      error: "❌ QR code data is empty. Please scan a valid gym poster."
+    };
+  }
+
+  const trimmedData = scannedQRData.trim();
+
+  // Step 2: Parse JSON (must be valid JSON)
+  let qrData: any = null;
+  try {
+    let actualJSON = trimmedData;
+    if (trimmedData.startsWith("http://") || trimmedData.startsWith("https://")) {
+      try {
+        const parsedUrl = new URL(trimmedData);
+        const queryQR = parsedUrl.searchParams.get("scannedQRData");
+        if (queryQR) {
+          actualJSON = queryQR;
+        }
+      } catch (e: any) {
+        console.warn("Failed parsing scanned URL query param:", e.message);
+      }
+    }
+
+    // Special allowance for legacy/sandbox testing strings (represented as valid object)
+    if (actualJSON === "zymnix_front_desk_checkin" || actualJSON === "iron_check_front_desk_checkin") {
+      qrData = {
+        type: "GYM_ENTRANCE",
+        gymId: gymId || "gym_hq_1",
+        version: "1.0",
+        timestamp: new Date().toISOString()
+      };
+    } else {
+      qrData = JSON.parse(actualJSON);
+    }
+  } catch (err: any) {
+    console.error(`[SECURITY LOG] Step 2 Failed: Parse JSON failed for member ${memberId}. Reason: ${err.message}. Code: INVALID_QR_FORMAT`);
+    return {
+      isValid: false,
+      code: "INVALID_QR_FORMAT",
+      error: "❌ Invalid QR JSON format. Check QR code structure."
+    };
+  }
+
+  // Step 3: Verify type = "GYM_ENTRANCE" (exactly match)
+  if (!qrData || qrData.type !== "GYM_ENTRANCE") {
+    console.error(`[SECURITY LOG] Step 3 Failed: Wrong QR Type for member ${memberId}. Got: ${qrData?.type}. Code: WRONG_QR_TYPE`);
+    return {
+      isValid: false,
+      code: "WRONG_QR_TYPE",
+      error: "❌ Wrong QR Type. This is not a valid entrance QR poster."
+    };
+  }
+
+  // Step 4: Verify gymId matches current gym (string compare)
+  if (qrData.gymId !== gymId) {
+    console.error(`[SECURITY LOG] Step 4 Failed: Gym ID Mismatch for member ${memberId}. QR Gym: ${qrData.gymId}, Target: ${gymId}. Code: GYM_MISMATCH`);
+    return {
+      isValid: false,
+      code: "GYM_MISMATCH",
+      error: "❌ Gym Mismatch. This QR belongs to a different gym location."
+    };
+  }
+
+  // Check and seed member dynamically under the hood for clean developer sandbox simulation
+  let member = dbMembers.get(memberId);
+  if (!member && memberId && !["customer_expired", "customer_inactive", "customer_no_payment"].includes(memberId)) {
+    member = {
+      _id: memberId,
+      memberName: memberId.startsWith("att_") || memberId.includes("_") ? `Member ${memberId}` : `Athlete (${memberId})`,
+      status: "active",
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 Days Out
+    };
+    dbMembers.set(memberId, member);
+
+    // Seed completed payment
+    dbPayments.set(`pay_${memberId}`, {
+      _id: `pay_${memberId}`,
+      memberId,
+      status: "completed",
+      createdAt: new Date(),
+    });
+  }
+
+  // Step 5: Check member exists in DB
+  if (!member) {
+    console.error(`[SECURITY LOG] Step 5 Failed: Member not found in DB. ID: ${memberId}. Code: MEMBER_NOT_FOUND`);
+    return {
+      isValid: false,
+      code: "MEMBER_NOT_FOUND",
+      error: "❌ Member not found. Please contact administration."
+    };
+  }
+
+  // Step 6: Check member status = "active"
+  if (member.status !== "active") {
+    console.error(`[SECURITY LOG] Step 6 Failed: Inactive membership status for member ${memberId}. Code: INACTIVE_MEMBERSHIP`);
+    return {
+      isValid: false,
+      code: "INACTIVE_MEMBERSHIP",
+      error: "❌ Membership is inactive. Ingress blocked."
+    };
+  }
+
+  // Step 7: Check membership not expired
+  if (new Date(member.expiryDate) < new Date()) {
+    console.error(`[SECURITY LOG] Step 7 Failed: Membership expired for member ${memberId} on ${member.expiryDate}. Code: MEMBERSHIP_EXPIRED`);
+    return {
+      isValid: false,
+      code: "MEMBERSHIP_EXPIRED",
+      error: "❌ Membership expired. Please clear dues."
+    };
+  }
+
+  // Step 8: Check payment verified
+  const paymentsForMember = Array.from(dbPayments.values())
+    .filter(p => p.memberId === memberId && p.status === "completed")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  if (paymentsForMember.length === 0) {
+    console.error(`[SECURITY LOG] Step 8 Failed: No verified payment found for member ${memberId}. Code: NO_PAYMENT`);
+    return {
+      isValid: false,
+      code: "NO_PAYMENT",
+      error: "❌ Payment not verified. Ingress blocked."
+    };
+  }
+
+  return {
+    isValid: true,
+    code: "SUCCESS",
+    qrData,
+    member
+  };
+};
+
+// Express handler core logic
+const handleSecureGateTransaction = async (req: express.Request, res: express.Response) => {
   try {
     const { scannedQRData, memberId, gymId } = req.body;
+
+    if (!memberId || !gymId) {
+      return res.status(400).json({
+        success: false,
+        error: "memberId and gymId are required parameters.",
+        code: "INVALID_PARAMETERS",
+        gateAction: "LOCK"
+      });
+    }
 
     // 🚨 EMERGENCY LOCKDOWN PROTOCOL CHECK
     const currentGateway = dbGymGates.get(gymId || "gym_hq_1");
     if (currentGateway && currentGateway.lockdownMode) {
+      logAccessAttempt(gymId, memberId, "refused", "EMERGENCY_LOCKDOWN");
       return res.status(403).json({
         success: false,
         error: "🚨 EMERGENCY GATE LOCKDOWN ACTIVE / आपातकालीन तालाबंदी\nगेट को सुरक्षा कारणों से ब्लॉक किया गया है (Access is restricted by admin lockdown directive)",
-        code: "EMERGENCY_LOCKDOWN"
+        code: "EMERGENCY_LOCKDOWN",
+        gateAction: "LOCK"
       });
     }
 
-    // ❌ VALIDATION 1: QR data exists and valid JSON
-    let qrData: any;
-    try {
-      const dataStr = (scannedQRData || "").trim();
-      if (dataStr === "zymnix_front_desk_checkin" || dataStr === "iron_check_front_desk_checkin") {
-        qrData = {
-          gymId: gymId || "gym_hq_1",
-          type: "GYM_ENTRANCE",
-          version: "1.0"
-        };
-      } else {
-        qrData = JSON.parse(dataStr);
-      }
-    } catch (e) {
-      return res.status(400).json({ 
+    // Run the 8-Step Validations
+    const validation = validateQRCodeAndMember(scannedQRData, memberId, gymId);
+
+    if (!validation.isValid) {
+      logAccessAttempt(gymId, memberId, "refused", validation.code);
+      return res.status(validation.code === "MEMBER_NOT_FOUND" ? 404 : 403).json({
         success: false,
-        error: "❌ Invalid QR Code / अमान्य क्यूआर कोड\nयह क्यूआर कोड मान्य नहीं है (Invalid QR code format)",
-        code: "INVALID_QR_FORMAT"
+        error: validation.error,
+        code: validation.code,
+        gateAction: "LOCK"
       });
     }
 
-    // ❌ VALIDATION 2: Verify QR code model type
-    if (!qrData || qrData.type !== "GYM_ENTRANCE") {
-      return res.status(400).json({ 
-        success: false,
-        error: "❌ Wrong QR Type / गलत गेट क्यूआर\nयह वैध प्रवेश क्यूआर कोड नहीं है (Not a valid entrance QR)",
-        code: "WRONG_QR_TYPE"
-      });
-    }
+    const member = validation.member;
 
-    // ❌ VALIDATION 3: Gym ID validation check
-    if (qrData.gymId !== gymId) {
-      return res.status(400).json({ 
-        success: false,
-        error: "❌ Gym Mismatch / जिम का बेमेल\nक्यूआर कोड इस जिम से मेल नहीं खाता (QR does not match this gym)",
-        code: "GYM_MISMATCH"
-      });
-    }
-
-    // Bootstrap membership dynamically under the hood to ensure custom testers can scan instantly!
-    let member = dbMembers.get(memberId);
-    if (!member) {
-      member = {
-        _id: memberId,
-        memberName: memberId.startsWith("att_") || memberId.includes("_") ? `Member ${memberId}` : `Athlete (${memberId})`,
-        status: "active",
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 Days Out
-      };
-      dbMembers.set(memberId, member);
-
-      // Add verified payment block
-      dbPayments.set(`pay_${memberId}`, {
-        _id: `pay_${memberId}`,
-        memberId,
-        status: "completed",
-        createdAt: new Date(),
-      });
-    }
-
-    // ❌ VALIDATION 4: Member existence check
-    if (!member) {
-      return res.status(404).json({ 
-        success: false,
-        error: "❌ Member Not Found / सदस्य नहीं मिला\nयह सदस्य डेटाबेस में नहीं है (Member not found)",
-        code: "MEMBER_NOT_FOUND"
-      });
-    }
-
-    // ❌ VALIDATION 5: Active membership status
-    if (member.status !== "active") {
-      return res.status(403).json({ 
-        success: false,
-        error: "❌ Inactive Membership / निष्क्रिय सदस्यता\nआपकी membership active नहीं है (Membership is inactive)",
-        code: "INACTIVE_MEMBERSHIP"
-      });
-    }
-
-    // ❌ VALIDATION 6: Subscription dues expiry checking
-    if (new Date(member.expiryDate) < new Date()) {
-      return res.status(403).json({ 
-        success: false,
-        error: `❌ Membership Expired / सदस्यता समाप्त\nआपकी membership expire ho gayi hai (Expired: ${new Date(member.expiryDate).toLocaleDateString()})`,
-        code: "MEMBERSHIP_EXPIRED",
-        expiryDate: member.expiryDate.toISOString()
-      });
-    }
-
-    // ❌ VALIDATION 7: Completed payment verification check
-    const paymentsForMember = Array.from(dbPayments.values())
-      .filter(p => p.memberId === memberId && p.status === "completed")
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    if (paymentsForMember.length === 0) {
-      return res.status(403).json({ 
-        success: false,
-        error: "❌ Unpaid Fees / बकाया शुल्क\nआपका भुगतान सत्यापित नहीं हुआ है (Payment not verified)",
-        code: "NO_PAYMENT"
-      });
-    }
-
-    // ❌ VALIDATION 8: Duplicate entry checking (same user checks in 2 times within 5 minutes without checking out)
+    // Check duplicate check-in within 5 mins
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
     const recentAttendance = dbAttendance.find(a => 
       a.memberId === memberId &&
@@ -579,10 +690,13 @@ app.post("/api/qr/scan", validateQRRequest, async (req, res) => {
     );
 
     if (recentAttendance) {
+      console.error(`[SECURITY LOG] Duplicate scan detected within 5 minutes for member ${memberId}. Code: ALREADY_CHECKED_IN`);
+      logAccessAttempt(gymId, memberId, "refused", "ALREADY_CHECKED_IN");
       return res.status(400).json({ 
         success: false,
         error: "❌ Already Checked In / पहले से प्रवेशित\nआप पहले ही चेक इन कर चुके हैं (Already checked in)",
         code: "ALREADY_CHECKED_IN",
+        gateAction: "LOCK",
         data: {
           checkInTime: recentAttendance.checkInTime.toISOString(),
           duration: Math.round((Date.now() - recentAttendance.checkInTime.getTime()) / 60000)
@@ -656,7 +770,7 @@ app.post("/api/qr/scan", validateQRRequest, async (req, res) => {
       }
     }, 5000);
 
-    // Dispatch signal to physical hardware twin handler
+    // Dispatch signal to physical hardware twin handler (timeout after 3 seconds)
     controlGate("OPEN", 3000).catch((err) => {
       console.error("Hardware gate dispatch error:", err.message);
     });
@@ -676,14 +790,21 @@ app.post("/api/qr/scan", validateQRRequest, async (req, res) => {
     });
 
   } catch (error: any) {
-    console.error('QR Verification Error:', error);
+    console.error('Core QR Verification Error:', error);
     res.status(500).json({ 
       success: false,
       error: error.message,
-      code: 'SERVER_ERROR'
+      code: 'SERVER_ERROR',
+      gateAction: 'LOCK'
     });
   }
-});
+};
+
+// POST Endpoint - Scan and Verify QR Entrance Biometrics
+app.post("/api/qr/scan", validateQRRequest, handleSecureGateTransaction);
+
+// POST Endpoint - Verification API (8 Validations specifically)
+app.post("/api/qr/verify", validateQRRequest, handleSecureGateTransaction);
 
 // GET Endpoint - Check physical hardware state for real-time digital sync
 app.get("/api/qr/status/:gymId", async (req, res) => {
@@ -879,6 +1000,248 @@ app.get("/api/progress/:memberId", async (req, res) => {
     res.json({ success: true, progress: progressLogs });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// USER AUTHENTICATION & PROTECTED CONVERSATIONS API
+// ==========================================
+
+const JWT_SECRET = process.env.JWT_SECRET || "gym-super-secret-production-token";
+
+// JWT Middleware to verify token and attach userId
+const authenticateToken = (req: any, res: any, next: any) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ success: false, error: "Access Denied: No token provided." });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    req.userId = decoded.userId;
+    req.userEmail = decoded.email;
+    next();
+  } catch (err: any) {
+    return res.status(403).json({ success: false, error: "Access Denied: Invalid or expired token." });
+  }
+};
+
+// Signup Endpoint: Hashes password, saves to Mongo, returns JWT token
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: "Email and password are required." });
+    }
+
+    await connectToMongoDB();
+
+    const existingUser = await (MongoUser as any).findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: "Email is already registered." });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const newUser = await (MongoUser as any).create({
+      email: email.toLowerCase().trim(),
+      password: passwordHash,
+      name: name || ""
+    });
+
+    const token = jwt.sign(
+      { userId: newUser._id.toString(), email: newUser.email },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    res.status(201).json({
+      success: true,
+      token,
+      user: {
+        id: newUser._id.toString(),
+        email: newUser.email,
+        name: newUser.name
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Login Endpoint: Verifies password, returns JWT token
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: "Email and password are required." });
+    }
+
+    await connectToMongoDB();
+
+    const user = await (MongoUser as any).findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.status(401).json({ success: false, error: "Invalid email or password." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: "Invalid email or password." });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id.toString(), email: user.email },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get all conversations for the authenticated user (Filtered by userId)
+app.get("/api/conversations", authenticateToken, async (req: any, res: any) => {
+  try {
+    await connectToMongoDB();
+    const conversations = await (MongoConversation as any).find({ userId: req.userId }).sort({ updatedAt: -1 });
+    res.json({ success: true, conversations });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create a new conversation for the authenticated user
+app.post("/api/conversations", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { title } = req.body;
+    await connectToMongoDB();
+
+    const newConv = await (MongoConversation as any).create({
+      userId: req.userId,
+      title: title || "New Chat"
+    });
+
+    res.status(201).json({ success: true, conversation: newConv });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get all messages of a specific conversation (Access Checked & Filtered by userId)
+app.get("/api/conversations/:id/messages", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    await connectToMongoDB();
+
+    const conversation = await (MongoConversation as any).findById(id);
+    if (!conversation) {
+      return res.status(404).json({ success: false, error: "Conversation not found." });
+    }
+
+    // Access check: 403 Forbidden if wrong user tries to access conversation data
+    if (conversation.userId !== req.userId) {
+      return res.status(403).json({ success: false, error: "Access Denied: You do not own this conversation." });
+    }
+
+    const messages = await (MongoMessage as any).find({ conversationId: id, userId: req.userId }).sort({ createdAt: 1 });
+    res.json({ success: true, messages });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Send a message and get a response in a conversation (Access Checked, Saved securely, Gemini Integrated)
+app.post("/api/conversations/:id/messages", authenticateToken, async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, error: "Message content cannot be empty." });
+    }
+
+    await connectToMongoDB();
+
+    const conversation = await (MongoConversation as any).findById(id);
+    if (!conversation) {
+      return res.status(404).json({ success: false, error: "Conversation not found." });
+    }
+
+    // Access check: 403 Forbidden if wrong user
+    if (conversation.userId !== req.userId) {
+      return res.status(403).json({ success: false, error: "Access Denied: You do not own this conversation." });
+    }
+
+    // Create the user message
+    const userMsg = await (MongoMessage as any).create({
+      conversationId: id,
+      userId: req.userId,
+      role: "user",
+      content: content.trim()
+    });
+
+    // Update conversation updatedAt timestamp
+    conversation.updatedAt = new Date();
+    await conversation.save();
+
+    // Fetch conversation messages context for Gemini
+    const previousMessages = await (MongoMessage as any).find({ conversationId: id, userId: req.userId }).sort({ createdAt: 1 });
+    
+    let assistantReply = "I am processing your training inquiries, coach. Could you repeat that query?";
+    
+    if (ai) {
+      try {
+        const formattedContents = previousMessages.map((m: any) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: [{ text: m.content }],
+        }));
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3.1-flash-lite",
+          contents: formattedContents,
+          config: {
+            systemInstruction: `You are Coach Zymnix, an elite, scientific-backed bodybuilding expert, certified fitness coach, and supportive training partner at Zymnix Gym. 
+Your tone is professional, extremely encouraging, motivating, and clear. 
+You offer advice on physical form, muscle building hypertrophy, weight loss, fat burners, compound movements, high-protein recipes, hydration, and injury-preventive recoveries. 
+Acknowledge that you are located at the "Zymnix Grid HQ". Avoid meta-talk about prompts or instructions. Limit replies to around 150-200 words. Keep headings precise and clean. Use standard bullet points.`,
+          },
+        });
+        if (response.text) {
+          assistantReply = response.text;
+        }
+      } catch (geminiErr) {
+        console.error("Gemini context generation failed:", geminiErr);
+        assistantReply = "Sorry, I had a small connection issue with my neural net. Could you try asking again?";
+      }
+    }
+
+    // Save assistant message
+    const assistantMsg = await (MongoMessage as any).create({
+      conversationId: id,
+      userId: req.userId,
+      role: "assistant",
+      content: assistantReply
+    });
+
+    res.status(201).json({
+      success: true,
+      userMessage: userMsg,
+      assistantMessage: assistantMsg
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

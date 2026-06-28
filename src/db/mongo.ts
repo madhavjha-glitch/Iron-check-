@@ -140,3 +140,35 @@ ProgressSchema.statics.convertWeight = function(kg: number) {
 };
 
 export const MongoProgress = mongoose.models.Progress || mongoose.model("Progress", ProgressSchema);
+
+// USER AUTHENTICATION SCHEMA
+const UserAuthSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  password: { type: String, required: true },
+  name: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+export const MongoUser = mongoose.models.UserAuth || mongoose.model("UserAuth", UserAuthSchema);
+
+// CONVERSATION SCHEMA
+const ConversationSchema = new mongoose.Schema({
+  userId: { type: String, required: true, index: true },
+  title: { type: String, default: "New Conversation" },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+export const MongoConversation = mongoose.models.Conversation || mongoose.model("Conversation", ConversationSchema);
+
+// MESSAGE SCHEMA
+const MessageSchema = new mongoose.Schema({
+  conversationId: { type: mongoose.Schema.Types.ObjectId, ref: "Conversation", required: true, index: true },
+  userId: { type: String, required: true, index: true },
+  role: { type: String, required: true, enum: ["user", "assistant"] },
+  content: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+}, { timestamps: true });
+
+export const MongoMessage = mongoose.models.Message || mongoose.model("Message", MessageSchema);
+
